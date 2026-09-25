@@ -193,6 +193,11 @@ a {
   overflow: hidden;
 }
 
+.card a {
+  color: inherit;
+  text-decoration: none;
+}
+
 .card-image {
   height: 140px;
   background: var(--muted-bg);

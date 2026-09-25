@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>User 1 — Kuih mor, box of 12</title>
+<title>User 1 — Listing</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Manrope:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="css/styles.css">
 </head>
@@ -26,19 +26,19 @@
 
   <div class="listing-main">
     <div class="listing-image">[photo]</div>
-    <h1 class="listing-title">Kuih mor, box of 12</h1>
-    <span class="listing-price">$8.00</span>
-    <p class="listing-description">Soft, melt-in-the-mouth kuih mor made fresh to order. Coated in fine sugar, no preservatives added. Best enjoyed the same day.</p>
-    <span class="listing-meta">Category: Food</span>
+    <h1 class="listing-title" id="listing-title"></h1>
+    <span class="listing-price" id="listing-price"></span>
+    <p class="listing-description" id="listing-description"></p>
+    <span class="listing-meta" id="listing-category"></span>
   </div>
 
   <aside class="sidebar">
 
     <div class="panel">
       <span class="panel-label">Sold by</span>
-      <span class="seller-name">Khalita</span>
-      <span class="rating">&#9733; 4.8 (32 reviews)</span>
-      <a class="panel-link" href="seller.html">View seller profile &rarr;</a>
+      <span class="seller-name" id="seller-name"></span>
+      <span class="rating" id="seller-rating"></span>
+      <a class="panel-link" href="#" id="seller-link">View seller profile &rarr;</a>
     </div>
 
     <div class="panel">
@@ -46,13 +46,14 @@
       <p class="panel-note">You'll arrange payment and pickup or delivery directly with the seller or runner.</p>
       <a class="btn btn-primary btn-full" href="runners.html" id="choose-runner-link">Choose a runner</a>
       <button class="btn btn-outline btn-full" id="pickup-btn">Pickup instead</button>
-      <p class="confirm-note" id="pickup-confirm">Pickup selected — arrange a time with Khalita directly.</p>
+      <p class="confirm-note" id="pickup-confirm"></p>
     </div>
 
   </aside>
 
 </div>
 
+<script src="js/data.js"></script>
 <script src="js/script.js"></script>
 </body>
 </html>
