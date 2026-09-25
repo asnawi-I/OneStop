@@ -7,12 +7,23 @@ function capitalize(word) {
   return word.charAt(0).toUpperCase() + word.slice(1);
 }
 
+// Swaps a broken <img> for a small text label instead of the browser's
+// default broken-image icon. Used by every product photo on the site.
+function handleImageError(img) {
+  var fallback = document.createElement('span');
+  fallback.className = 'image-fallback-text';
+  fallback.textContent = '[Image unavailable]';
+  img.replaceWith(fallback);
+}
+
 // Builds the HTML for one listing card. Used by both the browse grid and a
 // seller's own listings grid.
 function cardHTML(listing, seller) {
   return '' +
     '<div class="card" data-category="' + listing.category + '">' +
-      '<a class="card-image" href="listing.html?id=' + listing.id + '">[photo]</a>' +
+      '<a class="card-image" href="listing.html?id=' + listing.id + '">' +
+        '<img src="' + listing.image + '" alt="' + listing.title + '" onerror="handleImageError(this)">' +
+      '</a>' +
       '<div class="card-body">' +
         '<a class="card-title" href="listing.html?id=' + listing.id + '">' + listing.title + '</a>' +
         '<a class="card-seller" href="seller.html?id=' + seller.id + '">by ' + seller.name + '</a>' +
@@ -98,6 +109,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (listing && seller) {
       document.title = 'User 1 \u2014 ' + listing.title;
+      document.getElementById('listing-image').innerHTML =
+        '<img src="' + listing.image + '" alt="' + listing.title + '" onerror="handleImageError(this)">';
       document.getElementById('listing-title').textContent = listing.title;
       document.getElementById('listing-price').textContent = '$' + listing.price.toFixed(2);
       document.getElementById('listing-description').textContent = listing.description;
