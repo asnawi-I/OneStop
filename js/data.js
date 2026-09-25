@@ -63,6 +63,26 @@
       { id: 'sambal', title: 'Homemade sambal, 250g', price: 6.00, category: 'food', sellerId: 'tomjerry',
         description: 'Small-batch homemade sambal, made fresh weekly with no added preservatives.',
         image: 'images/sambal.jpg' }
+    ],
+    runners: [
+      { id: 'hafiz', name: 'Hafiz', avatar: 'HF', rating: 4.9, trips: 58, active: true,
+        coverage: 'Covers Gadong, Kiulap. $3 base + $1/km.',
+        payment: 'Bank transfer (BIBD), Cash on delivery' },
+      { id: 'aimanr', name: 'Aiman R.', avatar: 'AR', rating: 4.7, trips: 21, active: true,
+        coverage: 'Covers Beribi, Rimba. Flat $5 per trip.',
+        payment: 'Bank transfer (Baiduri), Cash on delivery' },
+      { id: 'dayangn', name: 'Dayang N.', avatar: 'DN', rating: 5.0, trips: 12, active: false,
+        coverage: 'Covers Kiulap, Anggerek Desa. $4 base + $1/km.',
+        payment: 'Bank transfer (BIBD), Cash on delivery' },
+      { id: 'mizi', name: 'Mizi', avatar: 'MZ', rating: 4.6, trips: 40, active: true,
+        coverage: 'Covers Tutong. $6 flat, motorbike only.',
+        payment: 'Cash on delivery only' },
+      { id: 'farahk', name: 'Farah K.', avatar: 'FK', rating: 4.9, trips: 67, active: false,
+        coverage: 'Covers Gadong, Kiarong. $3 base + $1/km.',
+        payment: 'Bank transfer (BIBD), Cash on delivery' },
+      { id: 'alib', name: 'Ali B.', avatar: 'AB', rating: 4.8, trips: 15, active: true,
+        coverage: 'Covers Muara, Serasa. $5 base + $1/km.',
+        payment: 'Bank transfer (Baiduri), Cash on delivery' }
     ]
   };
 
@@ -98,6 +118,13 @@
     },
     getListingsBySeller: function (sellerId) {
       return readData().listings.filter(function (l) { return l.sellerId === sellerId; });
+    },
+    getRunners: function () {
+      return readData().runners;
+    },
+    getRunnerById: function (id) {
+      var match = readData().runners.filter(function (r) { return r.id === id; });
+      return match[0] || null;
     },
     // Wipes any local edits and restores the original seed data.
     reset: function () {

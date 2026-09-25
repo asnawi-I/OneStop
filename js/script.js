@@ -32,6 +32,27 @@ function cardHTML(listing, seller) {
     '</div>';
 }
 
+function runnerCardHTML(runner) {
+  var statusClass = runner.active ? 'active' : 'offline';
+  var statusLabel = runner.active ? 'Active now' : 'Offline';
+  return '' +
+    '<div class="runner-card">' +
+      '<div class="runner-top">' +
+        '<div class="runner-avatar">' + runner.avatar + '</div>' +
+        '<div>' +
+          '<div class="runner-name">' + runner.name + '</div>' +
+          '<div class="runner-rating">&#9733; ' + runner.rating.toFixed(1) + ' (' + runner.trips + ' trips)</div>' +
+        '</div>' +
+      '</div>' +
+      '<span class="status ' + statusClass + '"><span class="status-dot"></span>' + statusLabel + '</span>' +
+      '<span class="runner-coverage">' + runner.coverage + '</span>' +
+      '<div class="runner-actions">' +
+        '<a class="btn btn-outline" href="runner.html?id=' + runner.id + '">View profile</a>' +
+        '<button class="btn btn-primary" data-contact-name="' + runner.name + '">Contact</button>' +
+      '</div>' +
+    '</div>';
+}
+
 document.addEventListener('DOMContentLoaded', function () {
 
   // ---- Generic single-select chip groups (category chips, runner filter) ----
@@ -123,7 +144,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   // ---- Seller profile page: populate from ?id= (seller.html) ----
-  var sellerHeader = document.querySelector('.seller-header');
+  var sellerHeader = document.getElementById('seller-profile');
   if (sellerHeader && window.Store) {
     var sellerParams = new URLSearchParams(window.location.search);
     var sellerId = sellerParams.get('id') || 'khalita';
@@ -146,9 +167,12 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
-  // ---- Runner directory: All / Active now filter (runners.html) ----
-  var runnerGrid = document.querySelector('.runner-grid');
-  if (runnerGrid) {
+  // ---- Runner directory: render from Store, then All / Active now filter ----
+  var runnerGrid = document.getElementById('runner-grid');
+  if (runnerGrid && window.Store) {
+    var runners = Store.getRunners();
+    runnerGrid.innerHTML = runners.map(function (r) { return runnerCardHTML(r); }).join('');
+
     var runnerCards = Array.prototype.slice.call(runnerGrid.querySelectorAll('.runner-card'));
     var runnerFilter = document.querySelector('.filter-row');
 
@@ -174,17 +198,43 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (runnerFilter) runnerFilter.addEventListener('chipchange', applyRunnerFilter);
 
-    runnerGrid.querySelectorAll('.runner-actions .btn').forEach(function (btn) {
+    // "View profile" is now a real link (rendered into the card above).
+    // Only "Contact" still needs a placeholder, since there's no messaging system yet.
+    runnerGrid.querySelectorAll('.runner-actions .btn-primary').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        var card = btn.closest('.runner-card');
-        var name = card ? card.querySelector('.runner-name').textContent : 'this runner';
-        if (btn.classList.contains('btn-primary')) {
-          alert(name + ': this would open a way to contact them directly (WhatsApp, phone, etc).');
-        } else {
-          alert(name + ': this would open their full profile page.');
-        }
+        var name = btn.getAttribute('data-contact-name') || 'this runner';
+        alert(name + ': this would open a way to contact them directly (WhatsApp, phone, etc).');
       });
     });
+  }
+
+  // ---- Runner profile page: populate from ?id= (runner.html) ----
+  var runnerProfile = document.getElementById('runner-profile');
+  if (runnerProfile && window.Store) {
+    var runnerParams = new URLSearchParams(window.location.search);
+    var runnerId = runnerParams.get('id') || 'hafiz';
+    var runnerData = Store.getRunnerById(runnerId);
+
+    if (runnerData) {
+      document.title = 'User 1 \u2014 ' + runnerData.name;
+      document.getElementById('runner-avatar').textContent = runnerData.avatar;
+      document.getElementById('runner-name').textContent = runnerData.name;
+      document.getElementById('runner-rating').innerHTML = '&#9733; ' + runnerData.rating.toFixed(1) + ' (' + runnerData.trips + ' trips)';
+
+      var statusEl = document.getElementById('runner-status');
+      statusEl.className = 'status ' + (runnerData.active ? 'active' : 'offline');
+      statusEl.innerHTML = '<span class="status-dot"></span>' + (runnerData.active ? 'Active now' : 'Offline');
+
+      document.getElementById('runner-coverage').textContent = runnerData.coverage;
+      document.getElementById('runner-payment').textContent = 'Accepts: ' + runnerData.payment;
+
+      var contactBtn = document.getElementById('runner-contact-btn');
+      if (contactBtn) {
+        contactBtn.addEventListener('click', function () {
+          alert(runnerData.name + ': this would open a way to contact them directly (WhatsApp, phone, etc).');
+        });
+      }
+    }
   }
 
   // ---- Listing detail: pickup vs runner choice (listing.html) ----
