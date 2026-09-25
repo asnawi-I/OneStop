@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>User 1 — My profile</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Manrope:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<header class="site-header">
+  <span class="logo">User 1</span>
+  <nav class="site-nav">
+    <a href="index.html">Browse</a>
+    <a href="runners.html">Runners</a>
+    <a href="apply.html?role=seller">Become a seller</a>
+    <a href="apply.html?role=runner">Become a runner</a>
+    <a href="profile.html" class="active">My profile</a>
+    <button class="btn btn-outline">Sign in</button>
+  </nav>
+</header>
+
+<section class="page-heading">
+  <h1>Your profile</h1>
+  <p>Saved listings and application status live here — everything's tied to this browser for now, since there's no sign-in yet.</p>
+</section>
+
+<section class="page-heading">
+  <h2 class="listing-title" style="font-size: 20px;">Saved listings</h2>
+</section>
+
+<section class="listing-grid" id="saved-listings-grid">
+  <!-- Rendered at runtime from Store.getSavedListingIds() -->
+</section>
+
+<section class="page-heading">
+  <h2 class="listing-title" style="font-size: 20px;">Your applications</h2>
+</section>
+
+<section class="applications-list" id="applications-list">
+  <!-- Rendered at runtime from Store.getApplications() -->
+</section>
+
+<script src="js/data.js"></script>
+<script src="js/script.js"></script>
+</body>
+</html>

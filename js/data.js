@@ -85,8 +85,8 @@
         payment: 'Bank transfer (Baiduri), Cash on delivery' }
     ],
 
-    applications: []
-    
+    applications: [],
+    savedListingIds: []
   };
 
   function readData() {
@@ -146,6 +146,26 @@
       data.applications.push(app);
       writeData(data);
       return app;
+    },
+
+    getSavedListingIds: function () {
+      return readData().savedListingIds || [];
+    },
+    isListingSaved: function (id) {
+      var ids = readData().savedListingIds || [];
+      return ids.indexOf(id) !== -1;
+    },
+    toggleSavedListing: function (id) {
+      var data = readData();
+      if (!data.savedListingIds) data.savedListingIds = [];
+      var idx = data.savedListingIds.indexOf(id);
+      if (idx === -1) {
+        data.savedListingIds.push(id);
+      } else {
+        data.savedListingIds.splice(idx, 1);
+      }
+      writeData(data);
+      return data.savedListingIds.indexOf(id) !== -1;
     },
 
     // Wipes any local edits and restores the original seed data.

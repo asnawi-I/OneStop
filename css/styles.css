@@ -553,6 +553,43 @@ a {
   max-width: 640px;
 }
 
+.applications-list {
+  padding: 0 48px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.application-row {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 20px;
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.application-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.application-meta {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.status.pending {
+  color: var(--accent);
+}
+
+.status.pending .status-dot {
+  background: var(--accent);
+}
+
 .seller-header {
   padding: 32px 48px 24px;
   display: flex;

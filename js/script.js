@@ -140,6 +140,19 @@ document.addEventListener('DOMContentLoaded', function () {
       document.getElementById('seller-rating').innerHTML = '&#9733; ' + seller.rating.toFixed(1) + ' (' + seller.reviews + ' reviews)';
       document.getElementById('seller-link').setAttribute('href', 'seller.html?id=' + seller.id);
       document.getElementById('pickup-confirm').textContent = 'Pickup selected \u2014 arrange a time with ' + seller.name + ' directly.';
+
+      var saveBtn = document.getElementById('save-listing-btn');
+      if (saveBtn) {
+        function refreshSaveButton() {
+          saveBtn.textContent = Store.isListingSaved(listing.id) ? '\u2605 Saved' : '\u2606 Save for later';
+        }
+        refreshSaveButton();
+        saveBtn.addEventListener('click', function () {
+          Store.toggleSavedListing(listing.id);
+          refreshSaveButton();
+        });
+      }
+
     }
   }
 
@@ -343,6 +356,53 @@ document.addEventListener('DOMContentLoaded', function () {
       confirmation.style.display = 'block';
     });
   }
+
+  // ---- Buyer profile page: saved listings + applications (profile.html) ----
+  var savedGrid = document.getElementById('saved-listings-grid');
+  if (savedGrid && window.Store) {
+    var savedIds = Store.getSavedListingIds();
+    var savedListings = savedIds.map(function (id) { return Store.getListingById(id); }).filter(Boolean);
+
+    if (savedListings.length === 0) {
+      var savedEmpty = document.createElement('p');
+      savedEmpty.className = 'empty-state';
+      savedEmpty.textContent = 'You haven\'t saved anything yet \u2014 tap "Save for later" on a listing to add it here.';
+      savedGrid.appendChild(savedEmpty);
+    } else {
+      savedGrid.innerHTML = savedListings.map(function (l) {
+        var listingSeller = Store.getSellerById(l.sellerId);
+        return cardHTML(l, listingSeller);
+      }).join('');
+    }
+  }
+
+  var applicationsList = document.getElementById('applications-list');
+  if (applicationsList && window.Store) {
+    var myApplications = Store.getApplications();
+
+    if (myApplications.length === 0) {
+      var appsEmpty = document.createElement('p');
+      appsEmpty.className = 'empty-state';
+      appsEmpty.innerHTML = 'You haven\'t applied to become a seller or runner yet. <a class="panel-link" href="apply.html">Apply here</a>.';
+      applicationsList.appendChild(appsEmpty);
+    } else {
+      applicationsList.innerHTML = myApplications.slice().reverse().map(function (app) {
+        var submitted = new Date(app.submittedAt);
+        var dateLabel = submitted.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+        var roleLabel = app.role === 'seller' ? 'Seller' : 'Runner';
+        var detail = app.role === 'seller' ? ('Category: ' + capitalize(app.category)) : ('Coverage: ' + app.coverage);
+        return '' +
+          '<div class="application-row">' +
+            '<div>' +
+              '<div class="application-name">' + app.name + ' (' + roleLabel + ')</div>' +
+              '<div class="application-meta">Submitted ' + dateLabel + ' \u00b7 ' + detail + '</div>' +
+            '</div>' +
+            '<span class="status pending"><span class="status-dot"></span>Pending review</span>' +
+          '</div>';
+      }).join('');
+    }
+  }
+
 
   // ---- Sign in placeholder (every page) ----
   document.querySelectorAll('.site-header .btn-outline').forEach(function (btn) {
