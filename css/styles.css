@@ -480,3 +480,31 @@ a {
 .confirm-note.visible {
   display: block;
 }
+
+
+.seller-header {
+  padding: 32px 48px 24px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.seller-avatar {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: var(--muted-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.seller-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
