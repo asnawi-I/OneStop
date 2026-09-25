@@ -80,10 +80,13 @@
       { id: 'farahk', name: 'Farah K.', avatar: 'FK', rating: 4.9, trips: 67, active: false,
         coverage: 'Covers Gadong, Kiarong. $3 base + $1/km.',
         payment: 'Bank transfer (BIBD), Cash on delivery' },
-      { id: 'alib', name: 'Ali B.', avatar: 'AB', rating: 4.8, trips: 15, active: true,
+            { id: 'alib', name: 'Ali B.', avatar: 'AB', rating: 4.8, trips: 15, active: true,
         coverage: 'Covers Muara, Serasa. $5 base + $1/km.',
         payment: 'Bank transfer (Baiduri), Cash on delivery' }
-    ]
+    ],
+
+    applications: []
+    
   };
 
   function readData() {
@@ -100,6 +103,12 @@
       return SEED;
     }
   }
+
+
+  function writeData(data) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }
+
 
   window.Store = {
     getSellers: function () {
@@ -126,6 +135,19 @@
       var match = readData().runners.filter(function (r) { return r.id === id; });
       return match[0] || null;
     },
+
+    getApplications: function () {
+      return readData().applications || [];
+    },
+
+    addApplication: function (app) {
+      var data = readData();
+      if (!data.applications) data.applications = [];
+      data.applications.push(app);
+      writeData(data);
+      return app;
+    },
+
     // Wipes any local edits and restores the original seed data.
     reset: function () {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(SEED));

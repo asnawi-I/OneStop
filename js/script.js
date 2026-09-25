@@ -267,6 +267,83 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+    // ---- Application form (apply.html) ----
+  var applyForm = document.getElementById('apply-form');
+  if (applyForm && window.Store) {
+    var roleSeller = document.getElementById('role-seller');
+    var roleRunner = document.getElementById('role-runner');
+    var sellerFields = document.getElementById('seller-fields');
+    var runnerFields = document.getElementById('runner-fields');
+    var foodFields = document.getElementById('food-fields');
+    var categorySelect = document.getElementById('apply-category');
+    var halalCheckbox = document.getElementById('apply-halal-claim');
+    var halalFields = document.getElementById('halal-fields');
+
+    var applyParams = new URLSearchParams(window.location.search);
+    if (applyParams.get('role') === 'runner') {
+      roleRunner.checked = true;
+    } else {
+      roleSeller.checked = true;
+    }
+
+    function updateRoleFields() {
+      var isSeller = roleSeller.checked;
+      sellerFields.style.display = isSeller ? 'block' : 'none';
+      runnerFields.style.display = isSeller ? 'none' : 'block';
+    }
+    roleSeller.addEventListener('change', updateRoleFields);
+    roleRunner.addEventListener('change', updateRoleFields);
+    updateRoleFields();
+
+    function updateFoodFields() {
+      foodFields.style.display = categorySelect.value === 'food' ? 'block' : 'none';
+    }
+    categorySelect.addEventListener('change', updateFoodFields);
+    updateFoodFields();
+
+    halalCheckbox.addEventListener('change', function () {
+      halalFields.style.display = halalCheckbox.checked ? 'block' : 'none';
+    });
+
+    applyForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+
+      var role = roleSeller.checked ? 'seller' : 'runner';
+      var application = {
+        id: 'app-' + Date.now(),
+        role: role,
+        name: document.getElementById('apply-name').value,
+        contact: document.getElementById('apply-contact').value,
+        bio: document.getElementById('apply-bio').value,
+        payment: document.getElementById('apply-payment').value,
+        proofAttached: document.getElementById('apply-proof').files.length > 0,
+        status: 'pending',
+        submittedAt: new Date().toISOString()
+      };
+
+      if (role === 'seller') {
+        application.category = categorySelect.value;
+        application.foodCertAttached = document.getElementById('apply-food-cert').files.length > 0;
+        application.halalClaim = halalCheckbox.checked;
+        application.halalCertAttached = halalCheckbox.checked && document.getElementById('apply-halal-cert').files.length > 0;
+      } else {
+        application.coverage = document.getElementById('apply-coverage').value;
+        application.pricing = document.getElementById('apply-pricing').value;
+      }
+
+      Store.addApplication(application);
+
+      applyForm.style.display = 'none';
+      var confirmation = document.getElementById('apply-confirmation');
+      var confirmationText = document.getElementById('apply-confirmation-text');
+      confirmationText.textContent = 'Thanks, ' + application.name + '! We\'ve received your ' +
+        role + ' application and payment proof. You\'ll be able to start ' +
+        (role === 'seller' ? 'listing' : 'accepting runs') +
+        ' once it\'s approved \u2014 usually within 1\u20132 business days.';
+      confirmation.style.display = 'block';
+    });
+  }
+
   // ---- Sign in placeholder (every page) ----
   document.querySelectorAll('.site-header .btn-outline').forEach(function (btn) {
     if (btn.textContent.trim() === 'Sign in') {

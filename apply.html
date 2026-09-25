@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>User 1 — Apply</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Manrope:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<header class="site-header">
+  <span class="logo">User 1</span>
+  <nav class="site-nav">
+    <a href="index.html">Browse</a>
+    <a href="runners.html">Runners</a>
+    <a href="apply.html?role=seller">Become a seller</a>
+    <a href="apply.html?role=runner">Become a runner</a>
+    <button class="btn btn-outline">Sign in</button>
+  </nav>
+</header>
+
+<a class="back-link" href="index.html">&larr; Back to browse</a>
+
+<section class="page-heading">
+  <h1>Apply to join</h1>
+  <p>Fill this in once and we'll review it manually — approval usually takes 1&ndash;2 business days after we've checked your payment.</p>
+</section>
+
+<form class="apply-form" id="apply-form">
+
+  <div class="panel">
+    <span class="panel-title">I want to</span>
+    <div class="role-toggle">
+      <label><input type="radio" name="role" id="role-seller"> Sell products or services</label>
+      <label><input type="radio" name="role" id="role-runner"> Be a runner</label>
+    </div>
+  </div>
+
+  <div class="panel">
+    <span class="panel-title">About you</span>
+
+    <label class="form-label" for="apply-name">Name / business name</label>
+    <input class="form-input" type="text" id="apply-name" required>
+
+    <label class="form-label" for="apply-contact">Phone / WhatsApp number</label>
+    <input class="form-input" type="text" id="apply-contact" required>
+
+    <label class="form-label" for="apply-bio">Short description</label>
+    <textarea class="form-input" id="apply-bio" rows="3" required></textarea>
+  </div>
+
+  <div class="panel" id="seller-fields">
+    <span class="panel-title">Seller details</span>
+
+    <label class="form-label" for="apply-category">Category</label>
+    <select class="form-input" id="apply-category">
+      <option value="food">Food</option>
+      <option value="crafts">Crafts</option>
+      <option value="secondhand">Secondhand</option>
+      <option value="services">Services</option>
+    </select>
+
+    <div id="food-fields">
+      <label class="form-label" for="apply-food-cert">Food Handler's Certificate</label>
+      <input class="form-input" type="file" id="apply-food-cert">
+
+      <label class="checkbox-label"><input type="checkbox" id="apply-halal-claim"> I want to list this as Halal</label>
+
+      <div id="halal-fields" style="display: none;">
+        <label class="form-label" for="apply-halal-cert">Halal certification</label>
+        <input class="form-input" type="file" id="apply-halal-cert">
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="runner-fields">
+    <span class="panel-title">Runner details</span>
+
+    <label class="form-label" for="apply-coverage">Coverage area</label>
+    <input class="form-input" type="text" id="apply-coverage" placeholder="e.g. Gadong, Kiulap">
+
+    <label class="form-label" for="apply-pricing">Pricing</label>
+    <input class="form-input" type="text" id="apply-pricing" placeholder="e.g. $3 base + $1/km">
+  </div>
+
+  <div class="panel">
+    <span class="panel-title">Payment</span>
+
+    <label class="form-label" for="apply-payment">Payment methods you'll accept from buyers</label>
+    <input class="form-input" type="text" id="apply-payment" placeholder="e.g. Bank transfer (BIBD), Cash on pickup" required>
+
+    <label class="form-label" for="apply-proof">Proof of one-time registration fee payment</label>
+    <input class="form-input" type="file" id="apply-proof" required>
+    <p class="panel-note">This prototype doesn't actually upload files anywhere — we just note that something was attached.</p>
+  </div>
+
+  <button type="submit" class="btn btn-primary btn-full">Submit application</button>
+
+</form>
+
+<div class="panel confirmation-panel" id="apply-confirmation" style="display: none;">
+  <span class="panel-title">Application submitted</span>
+  <p class="listing-description" id="apply-confirmation-text"></p>
+  <a class="btn btn-outline" href="index.html">Back to browse</a>
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/script.js"></script>
+</body>
+</html>
