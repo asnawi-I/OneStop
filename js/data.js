@@ -137,6 +137,16 @@
       return match[0] || null;
     },
 
+    setRunnerActive: function (id, active) {
+      var data = readData();
+      var match = data.runners.filter(function (r) { return r.id === id; })[0];
+      if (match) {
+        match.active = active;
+        writeData(data);
+      }
+      return match || null;
+    },
+
     getApplications: function () {
       return readData().applications || [];
     },
@@ -176,7 +186,7 @@
         return r.targetType === targetType && r.targetId === targetId;
       });
     },
-    
+
     addReview: function (review) {
       var data = readData();
       if (!data.reviews) data.reviews = [];

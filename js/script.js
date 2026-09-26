@@ -350,6 +350,21 @@ document.addEventListener('DOMContentLoaded', function () {
       statusEl.className = 'status ' + (runnerData.active ? 'active' : 'offline');
       statusEl.innerHTML = '<span class="status-dot"></span>' + (runnerData.active ? 'Active now' : 'Offline');
 
+      var toggleBtn = document.getElementById('runner-toggle-active-btn');
+      if (toggleBtn) {
+        function refreshToggleButton() {
+          toggleBtn.textContent = runnerData.active ? 'Mark yourself offline' : 'Mark yourself active now';
+        }
+        refreshToggleButton();
+        toggleBtn.addEventListener('click', function () {
+          runnerData.active = !runnerData.active;
+          Store.setRunnerActive(runnerData.id, runnerData.active);
+          statusEl.className = 'status ' + (runnerData.active ? 'active' : 'offline');
+          statusEl.innerHTML = '<span class="status-dot"></span>' + (runnerData.active ? 'Active now' : 'Offline');
+          refreshToggleButton();
+        });
+      }
+
       document.getElementById('runner-coverage').textContent = runnerData.coverage;
       document.getElementById('runner-payment').textContent = 'Accepts: ' + runnerData.payment;
 
