@@ -155,6 +155,34 @@ function setupReviewSection(options) {
   });
 }
 
+function showConfirmModal(message, confirmLabel, onConfirm) {
+  var overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML =
+    '<div class="modal-box">' +
+      '<p class="modal-message"></p>' +
+      '<div class="modal-actions">' +
+        '<button class="btn btn-outline" data-modal-cancel>Cancel</button>' +
+        '<button class="btn btn-primary" data-modal-confirm></button>' +
+      '</div>' +
+    '</div>';
+  overlay.querySelector('.modal-message').textContent = message;
+  overlay.querySelector('[data-modal-confirm]').textContent = confirmLabel;
+  document.body.appendChild(overlay);
+
+  function close() {
+    overlay.remove();
+  }
+  overlay.addEventListener('click', function (e) {
+    if (e.target === overlay) close();
+  });
+  overlay.querySelector('[data-modal-cancel]').addEventListener('click', close);
+  overlay.querySelector('[data-modal-confirm]').addEventListener('click', function () {
+    close();
+    onConfirm();
+  });
+}
+
 document.addEventListener('DOMContentLoaded', function () {
 
   // ---- Generic single-select chip groups (category chips, runner filter) ----
@@ -351,7 +379,11 @@ document.addEventListener('DOMContentLoaded', function () {
       statusEl.innerHTML = '<span class="status-dot"></span>' + (runnerData.active ? 'Active now' : 'Offline');
 
       var toggleBtn = document.getElementById('runner-toggle-active-btn');
-      if (toggleBtn) {
+      var statusNote = document.getElementById('runner-status-note');
+      var session = Store.getSession();
+      var isOwner = !!(session && session.type === 'runner' && session.id === runnerData.id);
+
+      if (toggleBtn && isOwner) {
         function refreshToggleButton() {
           toggleBtn.textContent = runnerData.active ? 'Mark yourself offline' : 'Mark yourself active now';
         }
@@ -363,6 +395,9 @@ document.addEventListener('DOMContentLoaded', function () {
           statusEl.innerHTML = '<span class="status-dot"></span>' + (runnerData.active ? 'Active now' : 'Offline');
           refreshToggleButton();
         });
+      } else if (toggleBtn) {
+        toggleBtn.style.display = 'none';
+        if (statusNote) statusNote.textContent = 'Sign in as ' + runnerData.name + ' to manage this.';
       }
 
       document.getElementById('runner-coverage').textContent = runnerData.coverage;
@@ -582,13 +617,74 @@ document.addEventListener('DOMContentLoaded', function () {
     renderAdminList();
   }
 
-  // ---- Sign in placeholder (every page) ----
+    // ---- Auth nav: reflect the current mock session on every page ----
   document.querySelectorAll('.site-header .btn-outline').forEach(function (btn) {
-    if (btn.textContent.trim() === 'Sign in') {
+    if (btn.textContent.trim() !== 'Sign in' || !window.Store) return;
+    var session = Store.getSession();
+
+    if (session) {
+      var name = 'Buyer';
+      if (session.type === 'seller') {
+        var s = Store.getSellerById(session.id);
+        if (s) name = s.name;
+      } else if (session.type === 'runner') {
+        var r = Store.getRunnerById(session.id);
+        if (r) name = r.name;
+      }
+      btn.textContent = 'Signed in as ' + name;
       btn.addEventListener('click', function () {
-        alert('Sign in / registration isn\'t built yet \u2014 this is just a prototype.');
+        showConfirmModal('Sign out of "' + name + '"?', 'Sign out', function () {
+          Store.clearSession();
+          window.location.reload();
+        });
+      });
+    } else {
+      btn.addEventListener('click', function () {
+        window.location.href = 'signin.html';
       });
     }
   });
+
+  // ---- Sign in page: pick buyer / seller / runner to browse as (signin.html) ----
+  var signinForm = document.getElementById('signin-form');
+  if (signinForm && window.Store) {
+    var signinBuyer = document.getElementById('signin-buyer');
+    var signinSeller = document.getElementById('signin-seller');
+    var signinRunner = document.getElementById('signin-runner');
+    var sellerFieldsEl = document.getElementById('signin-seller-fields');
+    var runnerFieldsEl = document.getElementById('signin-runner-fields');
+    var sellerSelect = document.getElementById('signin-seller-select');
+    var runnerSelect = document.getElementById('signin-runner-select');
+
+    sellerSelect.innerHTML = Store.getSellers().map(function (s) {
+      return '<option value="' + s.id + '">' + s.name + '</option>';
+    }).join('');
+    runnerSelect.innerHTML = Store.getRunners().map(function (r) {
+      return '<option value="' + r.id + '">' + r.name + '</option>';
+    }).join('');
+
+    function updateSigninFields() {
+      sellerFieldsEl.style.display = signinSeller.checked ? 'block' : 'none';
+      runnerFieldsEl.style.display = signinRunner.checked ? 'block' : 'none';
+    }
+    signinBuyer.addEventListener('change', updateSigninFields);
+    signinSeller.addEventListener('change', updateSigninFields);
+    signinRunner.addEventListener('change', updateSigninFields);
+    updateSigninFields();
+
+    signinForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var session;
+      if (signinSeller.checked) {
+        session = { type: 'seller', id: sellerSelect.value };
+      } else if (signinRunner.checked) {
+        session = { type: 'runner', id: runnerSelect.value };
+      } else {
+        session = { type: 'buyer', id: null };
+      }
+      Store.setSession(session);
+      window.location.href = 'index.html';
+    });
+  }
 
 });

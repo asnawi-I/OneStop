@@ -7,6 +7,7 @@
 (function () {
 
   var STORAGE_KEY = 'onestop_prototype_data_v1';
+  var SESSION_KEY = 'onestop_prototype_session_v1';
 
   var SEED = {
     sellers: [
@@ -227,9 +228,25 @@
       return data.savedListingIds.indexOf(id) !== -1;
     },
 
-    // Wipes any local edits and restores the original seed data.
+        // Wipes any local edits and restores the original seed data.
     reset: function () {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(SEED));
+    },
+    // Session is deliberately kept separate from the seed data above, so
+    // resetting the prototype's data doesn't also sign you out.
+    getSession: function () {
+      try {
+        var raw = localStorage.getItem(SESSION_KEY);
+        return raw ? JSON.parse(raw) : null;
+      } catch (e) {
+        return null;
+      }
+    },
+    setSession: function (session) {
+      localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    },
+    clearSession: function () {
+      localStorage.removeItem(SESSION_KEY);
     }
   };
 

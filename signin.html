@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>User 1 — Sign in</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Manrope:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<header class="site-header">
+  <span class="logo">User 1</span>
+  <nav class="site-nav">
+    <a href="index.html">Browse</a>
+    <a href="runners.html">Runners</a>
+    <a href="apply.html?role=seller">Become a seller</a>
+    <a href="apply.html?role=runner">Become a runner</a>
+    <a href="profile.html">My profile</a>
+  </nav>
+</header>
+
+<a class="back-link" href="index.html">&larr; Back to browse</a>
+
+<section class="page-heading">
+  <h1>Sign in</h1>
+  <p>No real accounts yet — pick who you want to browse as for this session. It's saved to this browser until you sign out.</p>
+</section>
+
+<form class="apply-form" id="signin-form">
+
+  <div class="panel">
+    <span class="panel-title">Sign in as</span>
+    <div class="role-toggle">
+      <label><input type="radio" name="signin-type" id="signin-buyer" checked> Buyer</label>
+      <label><input type="radio" name="signin-type" id="signin-seller"> Seller</label>
+      <label><input type="radio" name="signin-type" id="signin-runner"> Runner</label>
+    </div>
+  </div>
+
+  <div class="panel" id="signin-seller-fields" style="display: none;">
+    <span class="panel-title">Which seller?</span>
+    <select class="form-input" id="signin-seller-select"></select>
+  </div>
+
+  <div class="panel" id="signin-runner-fields" style="display: none;">
+    <span class="panel-title">Which runner?</span>
+    <select class="form-input" id="signin-runner-select"></select>
+  </div>
+
+  <button type="submit" class="btn btn-primary btn-full">Sign in</button>
+
+</form>
+
+<script src="js/data.js"></script>
+<script src="js/script.js"></script>
+</body>
+</html>
