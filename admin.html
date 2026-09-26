@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>User 1 — Admin</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Manrope:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<header class="site-header">
+  <span class="logo">User 1</span>
+  <nav class="site-nav">
+    <a href="index.html">Back to site</a>
+  </nav>
+</header>
+
+<section class="page-heading">
+  <h1>Application queue</h1>
+  <p>Internal tool — review submitted applications, then approve or reject. Approving creates a live seller or runner immediately.</p>
+</section>
+
+<section class="filter-row">
+  <button class="chip active">All</button>
+  <button class="chip">Pending</button>
+  <button class="chip">Approved</button>
+  <button class="chip">Rejected</button>
+</section>
+
+<section class="applications-list" id="admin-applications-list">
+  <!-- Rendered at runtime from Store.getApplications() -->
+</section>
+
+<script src="js/data.js"></script>
+<script src="js/script.js"></script>
+</body>
+</html>

@@ -7,6 +7,16 @@ function capitalize(word) {
   return word.charAt(0).toUpperCase() + word.slice(1);
 }
 
+function slugify(name) {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 24) || ('user' + Date.now());
+}
+
+function initialsFromName(name) {
+  var parts = name.trim().split(/\s+/);
+  var letters = parts.slice(0, 2).map(function (p) { return p.charAt(0).toUpperCase(); });
+  return letters.join('') || '??';
+}
+
 // Swaps a broken <img> for a small text label instead of the browser's
 // default broken-image icon. Used by every product photo on the site.
 function handleImageError(img) {
@@ -49,6 +59,36 @@ function runnerCardHTML(runner) {
       '<div class="runner-actions">' +
         '<a class="btn btn-outline" href="runner.html?id=' + runner.id + '">View profile</a>' +
         '<button class="btn btn-primary" data-contact-name="' + runner.name + '">Contact</button>' +
+      '</div>' +
+    '</div>';
+}
+
+var STATUS_LABELS = { pending: 'Pending review', approved: 'Approved', rejected: 'Rejected' };
+
+function adminRowHTML(app) {
+  var roleLabel = app.role === 'seller' ? 'Seller' : 'Runner';
+  var detail = app.role === 'seller'
+    ? 'Category: ' + capitalize(app.category) + (app.halalClaim ? ' (claims Halal)' : '')
+    : 'Coverage: ' + app.coverage + ' \u00b7 Pricing: ' + app.pricing;
+  var certNote = app.role === 'seller'
+    ? ('Food cert: ' + (app.foodCertAttached ? 'attached' : 'missing') +
+        (app.halalClaim ? ', Halal cert: ' + (app.halalCertAttached ? 'attached' : 'missing') : ''))
+    : '';
+  var actions = app.status === 'pending'
+    ? '<div class="runner-actions"><button class="btn btn-primary" data-action="approve" data-id="' + app.id + '">Approve</button><button class="btn btn-outline" data-action="reject" data-id="' + app.id + '">Reject</button></div>'
+    : '';
+
+  return '' +
+    '<div class="application-row admin-row">' +
+      '<div>' +
+        '<div class="application-name">' + app.name + ' (' + roleLabel + ')</div>' +
+        '<div class="application-meta">' + app.contact + ' \u00b7 ' + detail + '</div>' +
+        (certNote ? '<div class="application-meta">' + certNote + '</div>' : '') +
+        '<div class="application-meta">Payment proof: ' + (app.proofAttached ? 'attached' : 'missing') + ' \u00b7 Accepts: ' + app.payment + '</div>' +
+      '</div>' +
+      '<div class="admin-row-status">' +
+        '<span class="status ' + app.status + '"><span class="status-dot"></span>' + STATUS_LABELS[app.status] + '</span>' +
+        actions +
       '</div>' +
     '</div>';
 }
@@ -397,10 +437,67 @@ document.addEventListener('DOMContentLoaded', function () {
               '<div class="application-name">' + app.name + ' (' + roleLabel + ')</div>' +
               '<div class="application-meta">Submitted ' + dateLabel + ' \u00b7 ' + detail + '</div>' +
             '</div>' +
-            '<span class="status pending"><span class="status-dot"></span>Pending review</span>' +
+            '<span class="status ' + app.status + '"><span class="status-dot"></span>' + STATUS_LABELS[app.status] + '</span>' +
           '</div>';
       }).join('');
     }
+  }
+
+    // ---- Admin panel: review/approve/reject applications (admin.html) ----
+  var adminList = document.getElementById('admin-applications-list');
+  if (adminList && window.Store) {
+    var adminFilter = document.querySelector('.filter-row');
+
+    function renderAdminList() {
+      var apps = Store.getApplications().slice().reverse();
+      var activeChip = adminFilter ? adminFilter.querySelector('.chip.active') : null;
+      var mode = activeChip ? activeChip.textContent.trim().toLowerCase() : 'all';
+      var filtered = mode === 'all' ? apps : apps.filter(function (a) { return a.status === mode; });
+
+      if (filtered.length === 0) {
+        adminList.innerHTML = '';
+        var empty = document.createElement('p');
+        empty.className = 'empty-state';
+        empty.textContent = 'No applications match this filter.';
+        adminList.appendChild(empty);
+        return;
+      }
+
+      adminList.innerHTML = filtered.map(function (app) { return adminRowHTML(app); }).join('');
+
+      adminList.querySelectorAll('[data-action]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var id = btn.getAttribute('data-id');
+          var action = btn.getAttribute('data-action');
+          var app = Store.getApplications().filter(function (a) { return a.id === id; })[0];
+          if (!app) return;
+
+          if (action === 'approve') {
+            var newId = slugify(app.name);
+            var initials = initialsFromName(app.name);
+            if (app.role === 'seller') {
+              Store.addSeller({
+                id: newId, name: app.name, avatar: initials, rating: 0, reviews: 0,
+                bio: app.bio, payment: app.payment
+              });
+            } else {
+              Store.addRunner({
+                id: newId, name: app.name, avatar: initials, rating: 0, trips: 0, active: false,
+                coverage: app.coverage, payment: app.payment
+              });
+            }
+            Store.updateApplicationStatus(id, 'approved');
+          } else {
+            Store.updateApplicationStatus(id, 'rejected');
+          }
+
+          renderAdminList();
+        });
+      });
+    }
+
+    if (adminFilter) adminFilter.addEventListener('chipchange', renderAdminList);
+    renderAdminList();
   }
 
 

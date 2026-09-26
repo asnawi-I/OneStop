@@ -11,6 +11,7 @@
   --muted-bg: #F0F1F3;
   --success: #0E8C5B;
   --offline: #9AA0A6;
+  --danger: #B3261E;  
   --font-display: 'Fraunces', Georgia, serif;
   --font-body: 'Manrope', -apple-system, sans-serif;
 }
@@ -588,6 +589,34 @@ a {
 
 .status.pending .status-dot {
   background: var(--accent);
+}
+
+.status.approved {
+  color: var(--success);
+}
+
+.status.approved .status-dot {
+  background: var(--success);
+}
+
+.status.rejected {
+  color: var(--danger);
+}
+
+.status.rejected .status-dot {
+  background: var(--danger);
+}
+
+.admin-row {
+  align-items: flex-start;
+}
+
+.admin-row-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .seller-header {

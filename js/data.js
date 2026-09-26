@@ -148,6 +148,28 @@
       return app;
     },
 
+    updateApplicationStatus: function (id, status) {
+      var data = readData();
+      var match = (data.applications || []).filter(function (a) { return a.id === id; });
+      if (match[0]) {
+        match[0].status = status;
+        writeData(data);
+      }
+      return match[0] || null;
+    },
+    addSeller: function (seller) {
+      var data = readData();
+      data.sellers.push(seller);
+      writeData(data);
+      return seller;
+    },
+    addRunner: function (runner) {
+      var data = readData();
+      data.runners.push(runner);
+      writeData(data);
+      return runner;
+    },
+
     getSavedListingIds: function () {
       return readData().savedListingIds || [];
     },
