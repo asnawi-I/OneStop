@@ -68,12 +68,8 @@ var STATUS_LABELS = { pending: 'Pending review', approved: 'Approved', rejected:
 function adminRowHTML(app) {
   var roleLabel = app.role === 'seller' ? 'Seller' : 'Runner';
   var detail = app.role === 'seller'
-    ? 'Category: ' + capitalize(app.category) + (app.halalClaim ? ' (claims Halal)' : '')
+    ? 'Category: ' + capitalize(app.category)
     : 'Coverage: ' + app.coverage + ' \u00b7 Pricing: ' + app.pricing;
-  var certNote = app.role === 'seller'
-    ? ('Food cert: ' + (app.foodCertAttached ? 'attached' : 'missing') +
-        (app.halalClaim ? ', Halal cert: ' + (app.halalCertAttached ? 'attached' : 'missing') : ''))
-    : '';
   var actions = app.status === 'pending'
     ? '<div class="runner-actions"><button class="btn btn-primary" data-action="approve" data-id="' + app.id + '">Approve</button><button class="btn btn-outline" data-action="reject" data-id="' + app.id + '">Reject</button></div>'
     : '';
@@ -83,7 +79,6 @@ function adminRowHTML(app) {
       '<div>' +
         '<div class="application-name">' + app.name + ' (' + roleLabel + ')</div>' +
         '<div class="application-meta">' + app.contact + ' \u00b7 ' + detail + '</div>' +
-        (certNote ? '<div class="application-meta">' + certNote + '</div>' : '') +
         '<div class="application-meta">Payment proof: ' + (app.proofAttached ? 'attached' : 'missing') + ' \u00b7 Accepts: ' + app.payment + '</div>' +
       '</div>' +
       '<div class="admin-row-status">' +
@@ -93,6 +88,9 @@ function adminRowHTML(app) {
     '</div>';
 }
 
+// Wires up the star input, submit button, and review list on either
+// listing.html (reviewing a seller) or runner.html (reviewing a runner).
+// options: { targetType: 'seller'|'runner', targetId, refreshRating }
 function setupReviewSection(options) {
   var starsContainer = document.getElementById('review-stars');
   var authorInput = document.getElementById('review-author');
@@ -267,7 +265,6 @@ document.addEventListener('DOMContentLoaded', function () {
           document.getElementById('seller-rating').innerHTML = '&#9733; ' + updated.rating.toFixed(1) + ' (' + updated.reviews + ' reviews)';
         }
       });
-
     }
   }
 
@@ -404,18 +401,17 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-    // ---- Application form (apply.html) ----
+  // ---- Application form (apply.html) ----
   var applyForm = document.getElementById('apply-form');
   if (applyForm && window.Store) {
     var roleSeller = document.getElementById('role-seller');
     var roleRunner = document.getElementById('role-runner');
     var sellerFields = document.getElementById('seller-fields');
     var runnerFields = document.getElementById('runner-fields');
-    var foodFields = document.getElementById('food-fields');
     var categorySelect = document.getElementById('apply-category');
-    var halalCheckbox = document.getElementById('apply-halal-claim');
-    var halalFields = document.getElementById('halal-fields');
 
+    // Pre-select the role based on which nav link ("Become a seller" /
+    // "Become a runner") the person clicked to get here.
     var applyParams = new URLSearchParams(window.location.search);
     if (applyParams.get('role') === 'runner') {
       roleRunner.checked = true;
@@ -431,16 +427,6 @@ document.addEventListener('DOMContentLoaded', function () {
     roleSeller.addEventListener('change', updateRoleFields);
     roleRunner.addEventListener('change', updateRoleFields);
     updateRoleFields();
-
-    function updateFoodFields() {
-      foodFields.style.display = categorySelect.value === 'food' ? 'block' : 'none';
-    }
-    categorySelect.addEventListener('change', updateFoodFields);
-    updateFoodFields();
-
-    halalCheckbox.addEventListener('change', function () {
-      halalFields.style.display = halalCheckbox.checked ? 'block' : 'none';
-    });
 
     applyForm.addEventListener('submit', function (e) {
       e.preventDefault();
@@ -460,9 +446,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
       if (role === 'seller') {
         application.category = categorySelect.value;
-        application.foodCertAttached = document.getElementById('apply-food-cert').files.length > 0;
-        application.halalClaim = halalCheckbox.checked;
-        application.halalCertAttached = halalCheckbox.checked && document.getElementById('apply-halal-cert').files.length > 0;
       } else {
         application.coverage = document.getElementById('apply-coverage').value;
         application.pricing = document.getElementById('apply-pricing').value;
@@ -527,7 +510,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
-    // ---- Admin panel: review/approve/reject applications (admin.html) ----
+  // ---- Admin panel: review/approve/reject applications (admin.html) ----
   var adminList = document.getElementById('admin-applications-list');
   if (adminList && window.Store) {
     var adminFilter = document.querySelector('.filter-row');
@@ -583,7 +566,6 @@ document.addEventListener('DOMContentLoaded', function () {
     if (adminFilter) adminFilter.addEventListener('chipchange', renderAdminList);
     renderAdminList();
   }
-
 
   // ---- Sign in placeholder (every page) ----
   document.querySelectorAll('.site-header .btn-outline').forEach(function (btn) {
