@@ -54,6 +54,26 @@
 
 </div>
 
+<section class="page-heading">
+  <h2 class="listing-title" style="font-size: 20px;">Reviews for <span id="review-target-name"></span></h2>
+</section>
+
+<section class="panel" style="margin: 0 48px 24px; max-width: 640px;">
+  <span class="panel-title">Leave a review</span>
+  <input class="form-input" type="text" id="review-author" placeholder="Your name (optional)">
+  <div class="star-input" id="review-stars" data-value="0">
+    <button type="button" class="star-btn" data-star="1">&#9733;</button>
+    <button type="button" class="star-btn" data-star="2">&#9733;</button>
+    <button type="button" class="star-btn" data-star="3">&#9733;</button>
+    <button type="button" class="star-btn" data-star="4">&#9733;</button>
+    <button type="button" class="star-btn" data-star="5">&#9733;</button>
+  </div>
+  <textarea class="form-input" id="review-comment" rows="2" placeholder="How was it?"></textarea>
+  <button class="btn btn-primary" id="review-submit-btn" style="align-self: flex-start; margin-top: 8px;">Submit review</button>
+</section>
+
+<section class="reviews-section" id="reviews-list"></section>
+
 <script src="js/data.js"></script>
 <script src="js/script.js"></script>
 </body>

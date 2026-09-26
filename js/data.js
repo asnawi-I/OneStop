@@ -86,7 +86,8 @@
     ],
 
     applications: [],
-    savedListingIds: []
+    savedListingIds: [],
+    reviews: []
   };
 
   function readData() {
@@ -168,6 +169,32 @@
       data.runners.push(runner);
       writeData(data);
       return runner;
+    },
+
+    getReviewsForTarget: function (targetType, targetId) {
+      return (readData().reviews || []).filter(function (r) {
+        return r.targetType === targetType && r.targetId === targetId;
+      });
+    },
+    
+    addReview: function (review) {
+      var data = readData();
+      if (!data.reviews) data.reviews = [];
+      data.reviews.push(review);
+
+      var list = review.targetType === 'seller' ? data.sellers : data.runners;
+      var countField = review.targetType === 'seller' ? 'reviews' : 'trips';
+      var target = list.filter(function (t) { return t.id === review.targetId; })[0];
+      if (target) {
+        var oldCount = target[countField] || 0;
+        var oldRating = target.rating || 0;
+        var newCount = oldCount + 1;
+        target.rating = ((oldRating * oldCount) + review.rating) / newCount;
+        target[countField] = newCount;
+      }
+
+      writeData(data);
+      return review;
     },
 
     getSavedListingIds: function () {

@@ -93,6 +93,70 @@ function adminRowHTML(app) {
     '</div>';
 }
 
+function setupReviewSection(options) {
+  var starsContainer = document.getElementById('review-stars');
+  var authorInput = document.getElementById('review-author');
+  var commentInput = document.getElementById('review-comment');
+  var submitBtn = document.getElementById('review-submit-btn');
+  var listEl = document.getElementById('reviews-list');
+  if (!starsContainer || !submitBtn || !listEl || !window.Store) return;
+
+  var starButtons = Array.prototype.slice.call(starsContainer.querySelectorAll('.star-btn'));
+  starButtons.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var val = parseInt(btn.getAttribute('data-star'), 10);
+      starsContainer.setAttribute('data-value', val);
+      starButtons.forEach(function (b) {
+        b.classList.toggle('filled', parseInt(b.getAttribute('data-star'), 10) <= val);
+      });
+    });
+  });
+
+  function renderReviews() {
+    var reviews = Store.getReviewsForTarget(options.targetType, options.targetId).slice().reverse();
+    if (reviews.length === 0) {
+      listEl.innerHTML = '<p class="empty-state">No reviews yet \u2014 be the first to leave one.</p>';
+      return;
+    }
+    listEl.innerHTML = reviews.map(function (r) {
+      var stars = '\u2605'.repeat(r.rating) + '\u2606'.repeat(5 - r.rating);
+      var dateLabel = new Date(r.submittedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+      return '' +
+        '<div class="review-row">' +
+          '<div class="review-stars">' + stars + '</div>' +
+          (r.comment ? '<p class="review-comment">' + r.comment + '</p>' : '') +
+          '<div class="review-meta">' + r.author + ' \u00b7 ' + dateLabel + '</div>' +
+        '</div>';
+    }).join('');
+  }
+  renderReviews();
+
+  submitBtn.addEventListener('click', function () {
+    var rating = parseInt(starsContainer.getAttribute('data-value'), 10) || 0;
+    if (rating === 0) {
+      alert('Please select a star rating first.');
+      return;
+    }
+    Store.addReview({
+      id: 'review-' + Date.now(),
+      targetType: options.targetType,
+      targetId: options.targetId,
+      author: (authorInput && authorInput.value.trim()) || 'Guest buyer',
+      rating: rating,
+      comment: commentInput ? commentInput.value.trim() : '',
+      submittedAt: new Date().toISOString()
+    });
+
+    options.refreshRating();
+
+    if (authorInput) authorInput.value = '';
+    if (commentInput) commentInput.value = '';
+    starsContainer.setAttribute('data-value', 0);
+    starButtons.forEach(function (b) { b.classList.remove('filled'); });
+    renderReviews();
+  });
+}
+
 document.addEventListener('DOMContentLoaded', function () {
 
   // ---- Generic single-select chip groups (category chips, runner filter) ----
@@ -193,6 +257,17 @@ document.addEventListener('DOMContentLoaded', function () {
         });
       }
 
+      var reviewTargetName = document.getElementById('review-target-name');
+      if (reviewTargetName) reviewTargetName.textContent = seller.name;
+      setupReviewSection({
+        targetType: 'seller',
+        targetId: seller.id,
+        refreshRating: function () {
+          var updated = Store.getSellerById(seller.id);
+          document.getElementById('seller-rating').innerHTML = '&#9733; ' + updated.rating.toFixed(1) + ' (' + updated.reviews + ' reviews)';
+        }
+      });
+
     }
   }
 
@@ -287,6 +362,15 @@ document.addEventListener('DOMContentLoaded', function () {
           alert(runnerData.name + ': this would open a way to contact them directly (WhatsApp, phone, etc).');
         });
       }
+
+      setupReviewSection({
+        targetType: 'runner',
+        targetId: runnerData.id,
+        refreshRating: function () {
+          var updated = Store.getRunnerById(runnerData.id);
+          document.getElementById('runner-rating').innerHTML = '&#9733; ' + updated.rating.toFixed(1) + ' (' + updated.trips + ' trips)';
+        }
+      });
     }
   }
 
