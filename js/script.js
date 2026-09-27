@@ -183,6 +183,17 @@ function showConfirmModal(message, confirmLabel, onConfirm) {
   });
 }
 
+function ownedListingRowHTML(listing) {
+  return '' +
+    '<div class="application-row">' +
+      '<div>' +
+        '<div class="application-name">' + listing.title + '</div>' +
+        '<div class="application-meta">$' + listing.price.toFixed(2) + ' \u00b7 ' + capitalize(listing.category) + '</div>' +
+      '</div>' +
+      '<button class="btn btn-outline" data-delete-listing="' + listing.id + '">Delete</button>' +
+    '</div>';
+}
+
 document.addEventListener('DOMContentLoaded', function () {
 
   // ---- Generic single-select chip groups (category chips, runner filter) ----
@@ -317,6 +328,66 @@ document.addEventListener('DOMContentLoaded', function () {
       sellerGrid.innerHTML = sellerListings.map(function (l) {
         return cardHTML(l, sellerData);
       }).join('');
+
+      var session = Store.getSession();
+      var isOwner = !!(session && session.type === 'seller' && session.id === sellerData.id);
+      var manageSection = document.getElementById('seller-manage-section');
+
+      if (isOwner && manageSection) {
+        manageSection.style.display = 'block';
+        var manageListEl = document.getElementById('seller-manage-list');
+
+        function refreshSellerViews() {
+          var owned = Store.getListingsBySeller(sellerData.id);
+          sellerGrid.innerHTML = owned.map(function (l) { return cardHTML(l, sellerData); }).join('');
+
+          if (owned.length === 0) {
+            manageListEl.innerHTML = '<p class="empty-state">You have no listings yet \u2014 add one below.</p>';
+          } else {
+            manageListEl.innerHTML = owned.map(function (l) { return ownedListingRowHTML(l); }).join('');
+            manageListEl.querySelectorAll('[data-delete-listing]').forEach(function (btn) {
+              btn.addEventListener('click', function () {
+                var id = btn.getAttribute('data-delete-listing');
+                showConfirmModal('Delete this listing? This can\'t be undone.', 'Delete', function () {
+                  Store.deleteListing(id);
+                  refreshSellerViews();
+                });
+              });
+            });
+          }
+        }
+        refreshSellerViews();
+
+        document.getElementById('add-listing-btn').addEventListener('click', function () {
+          var title = document.getElementById('new-listing-title').value.trim();
+          var price = parseFloat(document.getElementById('new-listing-price').value);
+          var category = document.getElementById('new-listing-category').value;
+          var description = document.getElementById('new-listing-description').value.trim();
+          var imageFile = document.getElementById('new-listing-image').value.trim();
+
+          if (!title || isNaN(price)) {
+            alert('Please fill in at least a title and a valid price.');
+            return;
+          }
+
+          Store.addListing({
+            id: slugify(title) + '-' + Date.now(),
+            title: title,
+            price: price,
+            category: category,
+            sellerId: sellerData.id,
+            description: description,
+            image: imageFile ? ('images/' + imageFile) : 'images/placeholder.jpg'
+          });
+
+          document.getElementById('new-listing-title').value = '';
+          document.getElementById('new-listing-price').value = '';
+          document.getElementById('new-listing-description').value = '';
+          document.getElementById('new-listing-image').value = '';
+
+          refreshSellerViews();
+        });
+      }
     }
   }
 
@@ -512,6 +583,37 @@ document.addEventListener('DOMContentLoaded', function () {
         ' once it\'s approved \u2014 usually within 1\u20132 business days.';
       confirmation.style.display = 'block';
     });
+  }
+
+  // ---- Profile page: shortcut to your own seller/runner page if signed in as one ----
+  var accountPanel = document.getElementById('account-shortcut-panel');
+  var buyerSections = document.getElementById('buyer-profile-sections');
+  if (accountPanel && window.Store) {
+    var profileSession = Store.getSession();
+    var isSellerOrRunner = !!(profileSession && (profileSession.type === 'seller' || profileSession.type === 'runner'));
+    if (buyerSections) buyerSections.style.display = isSellerOrRunner ? 'none' : 'block';
+
+    if (profileSession && profileSession.type === 'seller') {
+      var ownedSeller = Store.getSellerById(profileSession.id);
+      if (ownedSeller) {
+        document.getElementById('account-shortcut-title').textContent = 'You\'re signed in as a seller';
+        document.getElementById('account-shortcut-note').textContent = 'Manage your listings from your seller profile.';
+        var shortcutLink = document.getElementById('account-shortcut-link');
+        shortcutLink.textContent = 'Go to your seller profile';
+        shortcutLink.setAttribute('href', 'seller.html?id=' + ownedSeller.id);
+        accountPanel.style.display = 'block';
+      }
+    } else if (profileSession && profileSession.type === 'runner') {
+      var ownedRunner = Store.getRunnerById(profileSession.id);
+      if (ownedRunner) {
+        document.getElementById('account-shortcut-title').textContent = 'You\'re signed in as a runner';
+        document.getElementById('account-shortcut-note').textContent = 'Manage your active status from your runner profile.';
+        var shortcutLink2 = document.getElementById('account-shortcut-link');
+        shortcutLink2.textContent = 'Go to your runner profile';
+        shortcutLink2.setAttribute('href', 'runner.html?id=' + ownedRunner.id);
+        accountPanel.style.display = 'block';
+      }
+    }
   }
 
   // ---- Buyer profile page: saved listings + applications (profile.html) ----

@@ -23,24 +23,32 @@
 
 <section class="page-heading">
   <h1>Your profile</h1>
-  <p>Saved listings and application status live here — everything's tied to this browser for now, since there's no sign-in yet.</p>
+  <p>Saved listings and application status live here — everything's tied to this browser, since there's no real password-based login yet.</p>
 </section>
 
-<section class="page-heading">
-  <h2 class="listing-title" style="font-size: 20px;">Saved listings</h2>
+<section class="panel" id="account-shortcut-panel" style="margin: 32px 48px 32px; max-width: 480px; display: none; gap: 16px;">
+   <span class="panel-title" id="account-shortcut-title" style="line-height: 1.0;"></span>
+  <p class="panel-note" id="account-shortcut-note" style="line-height: 3.8;"></p>
+  <a class="btn btn-primary" id="account-shortcut-link" href="#"></a>
 </section>
 
-<section class="listing-grid" id="saved-listings-grid">
-  <!-- Rendered at runtime from Store.getSavedListingIds() -->
-</section>
+<div id="buyer-profile-sections">
+  <section class="page-heading">
+    <h2 class="listing-title" style="font-size: 20px;">Saved listings</h2>
+  </section>
 
-<section class="page-heading">
-  <h2 class="listing-title" style="font-size: 20px;">Your applications</h2>
-</section>
+  <section class="listing-grid" id="saved-listings-grid">
+    <!-- Rendered at runtime from Store.getSavedListingIds() -->
+  </section>
 
-<section class="applications-list" id="applications-list">
-  <!-- Rendered at runtime from Store.getApplications() -->
-</section>
+  <section class="page-heading">
+    <h2 class="listing-title" style="font-size: 20px;">Your applications</h2>
+  </section>
+
+  <section class="applications-list" id="applications-list">
+    <!-- Rendered at runtime from Store.getApplications() -->
+  </section>
+</div>
 
 <script src="js/data.js"></script>
 <script src="js/script.js"></script>

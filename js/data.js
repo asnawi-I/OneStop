@@ -120,19 +120,37 @@
       var match = readData().sellers.filter(function (s) { return s.id === id; });
       return match[0] || null;
     },
+
     getListings: function () {
       return readData().listings;
     },
+
     getListingById: function (id) {
       var match = readData().listings.filter(function (l) { return l.id === id; });
       return match[0] || null;
     },
+
     getListingsBySeller: function (sellerId) {
       return readData().listings.filter(function (l) { return l.sellerId === sellerId; });
     },
+
+    addListing: function (listing) {
+      var data = readData();
+      data.listings.push(listing);
+      writeData(data);
+      return listing;
+    },
+
+    deleteListing: function (id) {
+      var data = readData();
+      data.listings = data.listings.filter(function (l) { return l.id !== id; });
+      writeData(data);
+    },
+
     getRunners: function () {
       return readData().runners;
     },
+    
     getRunnerById: function (id) {
       var match = readData().runners.filter(function (r) { return r.id === id; });
       return match[0] || null;
