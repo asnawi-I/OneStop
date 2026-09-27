@@ -92,23 +92,8 @@ function adminRowHTML(app) {
 // listing.html (reviewing a seller) or runner.html (reviewing a runner).
 // options: { targetType: 'seller'|'runner', targetId, refreshRating }
 function setupReviewSection(options) {
-  var starsContainer = document.getElementById('review-stars');
-  var authorInput = document.getElementById('review-author');
-  var commentInput = document.getElementById('review-comment');
-  var submitBtn = document.getElementById('review-submit-btn');
   var listEl = document.getElementById('reviews-list');
-  if (!starsContainer || !submitBtn || !listEl || !window.Store) return;
-
-  var starButtons = Array.prototype.slice.call(starsContainer.querySelectorAll('.star-btn'));
-  starButtons.forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      var val = parseInt(btn.getAttribute('data-star'), 10);
-      starsContainer.setAttribute('data-value', val);
-      starButtons.forEach(function (b) {
-        b.classList.toggle('filled', parseInt(b.getAttribute('data-star'), 10) <= val);
-      });
-    });
-  });
+  if (!listEl || !window.Store) return;
 
   function renderReviews() {
     var reviews = Store.getReviewsForTarget(options.targetType, options.targetId).slice().reverse();
@@ -128,6 +113,34 @@ function setupReviewSection(options) {
     }).join('');
   }
   renderReviews();
+
+  var starsContainer = document.getElementById('review-stars');
+  var authorInput = document.getElementById('review-author');
+  var commentInput = document.getElementById('review-comment');
+  var submitBtn = document.getElementById('review-submit-btn');
+  if (!starsContainer || !submitBtn) return;
+
+  var session = Store.getSession();
+  var isSelf = !!(session && session.type === options.targetType && session.id === options.targetId);
+
+  if (isSelf) {
+    var reviewPanel = submitBtn.closest('.panel');
+    if (reviewPanel) {
+      reviewPanel.innerHTML = '<span class="panel-title">Leave a review</span><p class="panel-note">You can\'t review your own profile.</p>';
+    }
+    return;
+  }
+
+  var starButtons = Array.prototype.slice.call(starsContainer.querySelectorAll('.star-btn'));
+  starButtons.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var val = parseInt(btn.getAttribute('data-star'), 10);
+      starsContainer.setAttribute('data-value', val);
+      starButtons.forEach(function (b) {
+        b.classList.toggle('filled', parseInt(b.getAttribute('data-star'), 10) <= val);
+      });
+    });
+  });
 
   submitBtn.addEventListener('click', function () {
     var rating = parseInt(starsContainer.getAttribute('data-value'), 10) || 0;
