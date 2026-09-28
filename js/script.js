@@ -58,7 +58,7 @@ function runnerCardHTML(runner) {
       '<span class="runner-coverage">' + runner.coverage + '</span>' +
       '<div class="runner-actions">' +
         '<a class="btn btn-outline" href="runner.html?id=' + runner.id + '">View profile</a>' +
-        '<button class="btn btn-primary" data-contact-name="' + runner.name + '">Contact</button>' +
+        '<a class="btn btn-primary" href="runner.html?id=' + runner.id + '#message-input">Contact</a>' +
       '</div>' +
     '</div>';
 }
@@ -293,6 +293,7 @@ document.addEventListener('DOMContentLoaded', function () {
       document.getElementById('seller-name').textContent = seller.name;
       document.getElementById('seller-rating').innerHTML = '&#9733; ' + seller.rating.toFixed(1) + ' (' + seller.reviews + ' reviews)';
       document.getElementById('seller-link').setAttribute('href', 'seller.html?id=' + seller.id);
+      document.getElementById('message-seller-link').setAttribute('href', 'seller.html?id=' + seller.id + '#message-input');
       document.getElementById('pickup-confirm').textContent = 'Pickup selected \u2014 arrange a time with ' + seller.name + ' directly.';
 
       var saveBtn = document.getElementById('save-listing-btn');
@@ -434,15 +435,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     if (runnerFilter) runnerFilter.addEventListener('chipchange', applyRunnerFilter);
-
-    // "View profile" is now a real link (rendered into the card above).
-    // Only "Contact" still needs a placeholder, since there's no messaging system yet.
-    runnerGrid.querySelectorAll('.runner-actions .btn-primary').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var name = btn.getAttribute('data-contact-name') || 'this runner';
-        alert(name + ': this would open a way to contact them directly (WhatsApp, phone, etc).');
-      });
-    });
   }
 
   // ---- Runner profile page: populate from ?id= (runner.html) ----
@@ -487,11 +479,43 @@ document.addEventListener('DOMContentLoaded', function () {
       document.getElementById('runner-coverage').textContent = runnerData.coverage;
       document.getElementById('runner-payment').textContent = 'Accepts: ' + runnerData.payment;
 
-      var contactBtn = document.getElementById('runner-contact-btn');
-      if (contactBtn) {
-        contactBtn.addEventListener('click', function () {
-          alert(runnerData.name + ': this would open a way to contact them directly (WhatsApp, phone, etc).');
+      var messageThreadList = document.getElementById('message-thread-list');
+      var messageInput = document.getElementById('message-input');
+      var messageSendBtn = document.getElementById('message-send-btn');
+      if (messageThreadList && messageInput && messageSendBtn) {
+        var mySender = isOwner ? 'runner' : 'buyer';
+
+        function renderMessageThread() {
+          var thread = Store.getThread('runner', runnerData.id);
+          var messages = thread ? thread.messages : [];
+          if (messages.length === 0) {
+            messageThreadList.innerHTML = '<p class="empty-state">No messages yet \u2014 say hello.</p>';
+            return;
+          }
+          messageThreadList.innerHTML = messages.map(function (m) {
+            var who = m.sender === 'buyer' ? 'Buyer' : runnerData.name;
+            var mine = m.sender === mySender;
+            return '<div class="message-bubble ' + (mine ? 'mine' : 'theirs') + '"><div class="message-sender">' + who + '</div><div class="message-text">' + m.text + '</div></div>';
+          }).join('');
+          messageThreadList.scrollTop = messageThreadList.scrollHeight;
+        }
+        renderMessageThread();
+
+        function sendMessage() {
+          var text = messageInput.value.trim();
+          if (!text) return;
+          Store.sendMessage('runner', runnerData.id, mySender, text);
+          messageInput.value = '';
+          renderMessageThread();
+        }
+        messageSendBtn.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') sendMessage();
         });
+
+        if (window.location.hash === '#message-input') {
+          messageInput.focus();
+        }
       }
 
       setupReviewSection({

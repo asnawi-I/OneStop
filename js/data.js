@@ -88,7 +88,8 @@
 
     applications: [],
     savedListingIds: [],
-    reviews: []
+    reviews: [],
+    threads: []
   };
 
   function readData() {
@@ -150,7 +151,7 @@
     getRunners: function () {
       return readData().runners;
     },
-    
+
     getRunnerById: function (id) {
       var match = readData().runners.filter(function (r) { return r.id === id; });
       return match[0] || null;
@@ -164,6 +165,23 @@
         writeData(data);
       }
       return match || null;
+    },
+
+    getThread: function (targetType, targetId) {
+      var threads = readData().threads || [];
+      return threads.filter(function (t) { return t.targetType === targetType && t.targetId === targetId; })[0] || null;
+    },
+    sendMessage: function (targetType, targetId, sender, text) {
+      var data = readData();
+      if (!data.threads) data.threads = [];
+      var thread = data.threads.filter(function (t) { return t.targetType === targetType && t.targetId === targetId; })[0];
+      if (!thread) {
+        thread = { id: targetType + '-' + targetId, targetType: targetType, targetId: targetId, messages: [] };
+        data.threads.push(thread);
+      }
+      thread.messages.push({ sender: sender, text: text, sentAt: new Date().toISOString() });
+      writeData(data);
+      return thread;
     },
 
     getApplications: function () {

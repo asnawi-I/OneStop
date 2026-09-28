@@ -701,6 +701,51 @@ a {
   justify-content: flex-end;
 }
 
+.message-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.message-bubble {
+  max-width: 80%;
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 14px;
+}
+
+.message-bubble.mine {
+  align-self: flex-end;
+  background: var(--accent);
+  color: #FFFFFF;
+}
+
+.message-bubble.theirs {
+  align-self: flex-start;
+  background: var(--muted-bg);
+  color: var(--text);
+}
+
+.message-sender {
+  font-size: 11px;
+  opacity: 0.75;
+  margin-bottom: 2px;
+}
+
+.message-compose {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.message-compose .form-input {
+  margin-top: 0;
+  flex: 1;
+}
+
 .seller-header {
   padding: 32px 48px 24px;
   display: flex;
