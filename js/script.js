@@ -402,6 +402,44 @@ document.addEventListener('DOMContentLoaded', function () {
           refreshSellerViews();
         });
       }
+
+      var messageThreadList = document.getElementById('message-thread-list');
+      var messageInput = document.getElementById('message-input');
+      var messageSendBtn = document.getElementById('message-send-btn');
+      if (messageThreadList && messageInput && messageSendBtn) {
+        var mySender = isOwner ? 'seller' : 'buyer';
+
+        function renderMessageThread() {
+          var thread = Store.getThread('seller', sellerData.id);
+          var messages = thread ? thread.messages : [];
+          if (messages.length === 0) {
+            messageThreadList.innerHTML = '<p class="empty-state">No messages yet \u2014 say hello. </p>';
+          }
+          messageThreadList.innerHTML = messages.map(function (m) {
+            var who = m.sender === 'buyer' ? 'Buyer' : sellerData.name;
+            var mine = m.sender === mySender;
+            return '<div class="message-bubble ' + (mine ? 'mine' : 'theirs') + '"><div class="message-sender">' + who + '</div><div class="message-text">' + m.text + '</div></div>';
+          }).join('');
+          messageThreadList.scrollTop = messageThreadList.scrollHeight;
+        }
+        renderMessageThread();
+
+        function sendMessage() {
+          var text = messageInput.value.trim();
+          if (!text) return;
+          Store.sendMessage('seller', sellerData.id, mySender, text);
+          messageInput.value = '';
+          renderMessageThread();
+        }
+        messageSendBtn.addEventListener('click', sendMessage);
+        messageInput.addEventListener('kedown', function (e) {
+          if (e.key === 'Enter') sendMessage();
+        });
+
+        if (window.location.hash === '#message-input') {
+          messageInput.focus();
+        }
+      }
     }
   }
 
