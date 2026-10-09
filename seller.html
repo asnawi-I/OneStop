@@ -68,8 +68,10 @@
     <label class="form-label" for="new-listing-description">Description</label>
     <textarea class="form-input" id="new-listing-description" rows="2"></textarea>
 
-    <label class="form-label" for="new-listing-image">Image filenames, comma-separated (in your images/ folder)</label>
-    <input class="form-input" type="text" id="new-listing-image" placeholder="e.g. front.jpg, side.jpg, back.jpg">
+    <span class="form-label">Photos</span>
+    <div class="dropzone" id="photo-dropzone">Drag &amp; drop photos here, or click to browse</div>
+    <input type="file" id="new-listing-photos" accept="image/*" multiple style="display: none;">
+    <div class="drop-previews" id="photo-previews"></div>
 
     <button class="btn btn-primary" id="add-listing-btn" style="align-self: flex-start; margin-top: 8px;">Add listing</button>
   </section>

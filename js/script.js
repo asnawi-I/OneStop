@@ -17,6 +17,30 @@ function initialsFromName(name) {
   return letters.join('') || '??';
 }
 
+// Reads an image file, shrinks it so its longest side is at most maxSize,
+// and returns it as a JPEG data URL (small enough to keep in localStorage).
+function resizeImageToDataURL(file, maxSize, callback) {
+  var reader = new FileReader();
+  reader.onerror = function () { callback(null); };
+  reader.onload = function () {
+    var img = new Image();
+    img.onerror = function () { callback(null); };
+    img.onload = function () {
+      var scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+      var canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      var ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      callback(canvas.toDataURL('image/jpeg', 0.8));
+    };
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+}
+
 // Listings used to have one "image" string; newer ones have an "images" array.
 // This reads either shape, so older saved data keeps working without a reset.
 function getListingImages(listing) {
@@ -410,34 +434,98 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         refreshSellerViews();
 
+        // ---- Drag-and-drop photos for the new listing ----
+        var pendingPhotos = [];
+        var dropzone = document.getElementById('photo-dropzone');
+        var photoInput = document.getElementById('new-listing-photos');
+        var previewsEl = document.getElementById('photo-previews');
+
+        function renderPhotoPreviews() {
+          previewsEl.innerHTML = pendingPhotos.map(function (src, i) {
+            return '<div class="drop-preview">' +
+              '<img src="' + src + '" alt="Photo ' + (i + 1) + '">' +
+              '<button type="button" class="drop-preview-remove" data-index="' + i + '" aria-label="Remove photo">&times;</button>' +
+            '</div>';
+          }).join('');
+          previewsEl.querySelectorAll('.drop-preview-remove').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+              pendingPhotos.splice(parseInt(btn.getAttribute('data-index'), 10), 1);
+              renderPhotoPreviews();
+            });
+          });
+        }
+
+        function addPhotoFiles(fileList) {
+          var files = Array.prototype.slice.call(fileList).filter(function (f) {
+            return f.type && f.type.indexOf('image/') === 0;
+          });
+          if (files.length === 0) return;
+          var results = new Array(files.length);
+          var remaining = files.length;
+          files.forEach(function (file, i) {
+            resizeImageToDataURL(file, 800, function (dataUrl) {
+              results[i] = dataUrl;
+              remaining--;
+              if (remaining === 0) {
+                results.forEach(function (r) { if (r) pendingPhotos.push(r); });
+                renderPhotoPreviews();
+              }
+            });
+          });
+        }
+
+        dropzone.addEventListener('click', function () { photoInput.click(); });
+        photoInput.addEventListener('change', function () {
+          addPhotoFiles(photoInput.files);
+          photoInput.value = '';
+        });
+        ['dragenter', 'dragover'].forEach(function (evt) {
+          dropzone.addEventListener(evt, function (e) {
+            e.preventDefault();
+            dropzone.classList.add('dragover');
+          });
+        });
+        ['dragleave', 'drop'].forEach(function (evt) {
+          dropzone.addEventListener(evt, function (e) {
+            e.preventDefault();
+            dropzone.classList.remove('dragover');
+          });
+        });
+        dropzone.addEventListener('drop', function (e) {
+          addPhotoFiles(e.dataTransfer.files);
+        });
+
         document.getElementById('add-listing-btn').addEventListener('click', function () {
           var title = document.getElementById('new-listing-title').value.trim();
           var price = parseFloat(document.getElementById('new-listing-price').value);
           var category = document.getElementById('new-listing-category').value;
           var description = document.getElementById('new-listing-description').value.trim();
-          var imageFile = document.getElementById('new-listing-image').value.trim();
 
           if (!title || isNaN(price)) {
             alert('Please fill in at least a title and a valid price.');
             return;
           }
 
-          Store.addListing({
-            id: slugify(title) + '-' + Date.now(),
-            title: title,
-            price: price,
-            category: category,
-            sellerId: sellerData.id,
-            description: description,
-            images: imageFile
-              ? imageFile.split(',').map(function (n) { return n.trim(); }).filter(Boolean).map(function (n) { return 'images/' + n; })
-              : []
-          });
+          try {
+            Store.addListing({
+              id: slugify(title) + '-' + Date.now(),
+              title: title,
+              price: price,
+              category: category,
+              sellerId: sellerData.id,
+              description: description,
+              images: pendingPhotos.slice()
+            });
+          } catch (err) {
+            alert('Couldn\'t save this listing \u2014 the browser\'s storage is full. Try fewer or smaller photos, or run Store.reset() in the console.');
+            return;
+          }
 
           document.getElementById('new-listing-title').value = '';
           document.getElementById('new-listing-price').value = '';
           document.getElementById('new-listing-description').value = '';
-          document.getElementById('new-listing-image').value = '';
+          pendingPhotos = [];
+          renderPhotoPreviews();
 
           refreshSellerViews();
         });
