@@ -239,7 +239,10 @@ function ownedListingRowHTML(listing) {
         '<div class="application-name">' + listing.title + '</div>' +
         '<div class="application-meta">$' + listing.price.toFixed(2) + ' \u00b7 ' + capitalize(listing.category) + '</div>' +
       '</div>' +
-      '<button class="btn btn-outline" data-delete-listing="' + listing.id + '">Delete</button>' +
+      '<div class="row-actions">' +
+        '<button class="btn btn-outline" data-edit-listing="' + listing.id + '">Edit</button>' +
+        '<button class="btn btn-outline" data-delete-listing="' + listing.id + '">Delete</button>' +
+      '</div>' +
     '</div>';
 }
 
@@ -421,11 +424,17 @@ document.addEventListener('DOMContentLoaded', function () {
             manageListEl.innerHTML = '<p class="empty-state">You have no listings yet \u2014 add one below.</p>';
           } else {
             manageListEl.innerHTML = owned.map(function (l) { return ownedListingRowHTML(l); }).join('');
+            manageListEl.querySelectorAll('[data-edit-listing]').forEach(function (btn) {
+              btn.addEventListener('click', function () {
+                startEditing(btn.getAttribute('data-edit-listing'));
+              });
+            });
             manageListEl.querySelectorAll('[data-delete-listing]').forEach(function (btn) {
               btn.addEventListener('click', function () {
                 var id = btn.getAttribute('data-delete-listing');
                 showConfirmModal('Delete this listing? This can\'t be undone.', 'Delete', function () {
                   Store.deleteListing(id);
+                  if (editingId === id) resetListingForm();
                   refreshSellerViews();
                 });
               });
@@ -436,6 +445,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // ---- Drag-and-drop photos for the new listing ----
         var pendingPhotos = [];
+         var editingId = null;
         var dropzone = document.getElementById('photo-dropzone');
         var photoInput = document.getElementById('new-listing-photos');
         var previewsEl = document.getElementById('photo-previews');
@@ -495,7 +505,41 @@ document.addEventListener('DOMContentLoaded', function () {
           addPhotoFiles(e.dataTransfer.files);
         });
 
-        document.getElementById('add-listing-btn').addEventListener('click', function () {
+        var formTitleEl = document.getElementById('listing-form-title');
+        var submitBtn = document.getElementById('add-listing-btn');
+        var cancelBtn = document.getElementById('cancel-edit-btn');
+
+        function resetListingForm() {
+          editingId = null;
+          document.getElementById('new-listing-title').value = '';
+          document.getElementById('new-listing-price').value = '';
+          document.getElementById('new-listing-description').value = '';
+          pendingPhotos = [];
+          renderPhotoPreviews();
+          formTitleEl.textContent = 'Add a listing';
+          submitBtn.textContent = 'Add listing';
+          cancelBtn.style.display = 'none';
+        }
+
+        function startEditing(id) {
+          var l = Store.getListingById(id);
+          if (!l || l.sellerId !== sellerData.id) return;
+          editingId = id;
+          document.getElementById('new-listing-title').value = l.title;
+          document.getElementById('new-listing-price').value = l.price;
+          document.getElementById('new-listing-category').value = l.category;
+          document.getElementById('new-listing-description').value = l.description || '';
+          pendingPhotos = getListingImages(l).slice();
+          renderPhotoPreviews();
+          formTitleEl.textContent = 'Edit listing';
+          submitBtn.textContent = 'Save changes';
+          cancelBtn.style.display = 'inline-flex';
+          formTitleEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        cancelBtn.addEventListener('click', resetListingForm);
+
+        submitBtn.addEventListener('click', function () {
           var title = document.getElementById('new-listing-title').value.trim();
           var price = parseFloat(document.getElementById('new-listing-price').value);
           var category = document.getElementById('new-listing-category').value;
@@ -507,26 +551,25 @@ document.addEventListener('DOMContentLoaded', function () {
           }
 
           try {
-            Store.addListing({
-              id: slugify(title) + '-' + Date.now(),
-              title: title,
-              price: price,
-              category: category,
-              sellerId: sellerData.id,
-              description: description,
-              images: pendingPhotos.slice()
-            });
+            if (editingId) {
+              Store.updateListing(editingId, {
+                title: title, price: price, category: category,
+                description: description, images: pendingPhotos.slice()
+              });
+            } else {
+              Store.addListing({
+                id: slugify(title) + '-' + Date.now(),
+                title: title, price: price, category: category,
+                sellerId: sellerData.id, description: description,
+                images: pendingPhotos.slice()
+              });
+            }
           } catch (err) {
-            alert('Couldn\'t save this listing \u2014 the browser\'s storage is full. Try fewer or smaller photos, or run Store.reset() in the console.');
+            alert('Couldn\'t save this listing — the browser\'s storage is full. Try fewer or smaller photos, or run Store.reset() in the console.');
             return;
           }
 
-          document.getElementById('new-listing-title').value = '';
-          document.getElementById('new-listing-price').value = '';
-          document.getElementById('new-listing-description').value = '';
-          pendingPhotos = [];
-          renderPhotoPreviews();
-
+          resetListingForm();
           refreshSellerViews();
         });
       }

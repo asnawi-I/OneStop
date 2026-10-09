@@ -142,6 +142,16 @@
       return listing;
     },
 
+    updateListing: function (id, changes) {
+      var data = readData();
+      data.listings = data.listings.map(function (l) {
+        if (l.id !== id) return l;
+        var updated = Object.assign({}, l, changes);
+        if (changes.images) delete updated.image;
+        return updated;
+      });
+      writeData(data);
+    },
     deleteListing: function (id) {
       var data = readData();
       data.listings = data.listings.filter(function (l) { return l.id !== id; });

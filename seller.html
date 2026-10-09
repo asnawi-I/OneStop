@@ -49,7 +49,7 @@
   <section class="applications-list" id="seller-manage-list"></section>
 
   <section class="panel" style="margin: 0 48px 48px; max-width: 640px;">
-    <span class="panel-title">Add a listing</span>
+    <span class="panel-title" id="listing-form-title">Add a listing</span>
 
     <label class="form-label" for="new-listing-title">Title</label>
     <input class="form-input" type="text" id="new-listing-title">
@@ -73,7 +73,10 @@
     <input type="file" id="new-listing-photos" accept="image/*" multiple style="display: none;">
     <div class="drop-previews" id="photo-previews"></div>
 
-    <button class="btn btn-primary" id="add-listing-btn" style="align-self: flex-start; margin-top: 8px;">Add listing</button>
+    <div class="row-actions" style="margin-top: 8px;">
+      <button class="btn btn-primary" id="add-listing-btn">Add listing</button>
+      <button class="btn btn-outline" id="cancel-edit-btn" style="display: none;">Cancel</button>
+    </div>
   </section>
 </div>
 
