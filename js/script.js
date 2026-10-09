@@ -17,6 +17,14 @@ function initialsFromName(name) {
   return letters.join('') || '??';
 }
 
+// Listings used to have one "image" string; newer ones have an "images" array.
+// This reads either shape, so older saved data keeps working without a reset.
+function getListingImages(listing) {
+  if (Array.isArray(listing.images)) return listing.images;
+  if (listing.image) return [listing.image];
+  return [];
+}
+
 // Swaps a broken <img> for a small text label instead of the browser's
 // default broken-image icon. Used by every product photo on the site.
 function handleImageError(img) {
@@ -29,10 +37,14 @@ function handleImageError(img) {
 // Builds the HTML for one listing card. Used by both the browse grid and a
 // seller's own listings grid.
 function cardHTML(listing, seller) {
+  var photos = getListingImages(listing);
+  var photoHTML = photos.length
+    ? '<img src="' + photos[0] + '" alt="' + listing.title + '" onerror="handleImageError(this)">'
+    : '<span class="image-fallback-text">[Image unavailable]</span>';
   return '' +
     '<div class="card" data-category="' + listing.category + '">' +
       '<a class="card-image" href="listing.html?id=' + listing.id + '">' +
-        '<img src="' + listing.image + '" alt="' + listing.title + '" onerror="handleImageError(this)">' +
+        photoHTML +
       '</a>' +
       '<div class="card-body">' +
         '<a class="card-title" href="listing.html?id=' + listing.id + '">' + listing.title + '</a>' +
@@ -284,8 +296,34 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (listing && seller) {
       document.title = 'User 1 \u2014 ' + listing.title;
-      document.getElementById('listing-image').innerHTML =
-        '<img src="' + listing.image + '" alt="' + listing.title + '" onerror="handleImageError(this)">';
+      var photos = getListingImages(listing);
+      var mainImageEl = document.getElementById('listing-image');
+      var thumbsEl = document.getElementById('listing-thumbs');
+
+      function showMainImage(src) {
+        mainImageEl.innerHTML = '<img src="' + src + '" alt="' + listing.title + '" onerror="handleImageError(this)">';
+      }
+
+      if (photos.length === 0) {
+        mainImageEl.innerHTML = '<span class="image-fallback-text">[Image unavailable]</span>';
+      } else {
+        showMainImage(photos[0]);
+      }
+
+      if (thumbsEl && photos.length > 1) {
+        thumbsEl.innerHTML = photos.map(function (src, i) {
+          return '<button type="button" class="thumb-btn' + (i === 0 ? ' active' : '') + '" data-src="' + src + '">' +
+            '<img src="' + src + '" alt="Photo ' + (i + 1) + '" onerror="handleImageError(this)">' +
+          '</button>';
+        }).join('');
+        thumbsEl.querySelectorAll('.thumb-btn').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            thumbsEl.querySelectorAll('.thumb-btn').forEach(function (b) { b.classList.remove('active'); });
+            btn.classList.add('active');
+            showMainImage(btn.getAttribute('data-src'));
+          });
+        });
+      }
       document.getElementById('listing-title').textContent = listing.title;
       document.getElementById('listing-price').textContent = '$' + listing.price.toFixed(2);
       document.getElementById('listing-description').textContent = listing.description;
@@ -391,7 +429,9 @@ document.addEventListener('DOMContentLoaded', function () {
             category: category,
             sellerId: sellerData.id,
             description: description,
-            image: imageFile ? ('images/' + imageFile) : 'images/placeholder.jpg'
+            images: imageFile
+              ? imageFile.split(',').map(function (n) { return n.trim(); }).filter(Boolean).map(function (n) { return 'images/' + n; })
+              : []
           });
 
           document.getElementById('new-listing-title').value = '';
