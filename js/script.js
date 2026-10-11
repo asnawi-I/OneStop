@@ -102,10 +102,12 @@ function runnerCardHTML(runner) {
 var STATUS_LABELS = { pending: 'Pending review', approved: 'Approved', rejected: 'Rejected' };
 
 function adminRowHTML(app) {
-  var roleLabel = app.role === 'seller' ? 'Seller' : 'Runner';
-  var detail = app.role === 'seller'
-    ? 'Category: ' + capitalize(app.category)
-    : 'Coverage: ' + app.coverage + ' \u00b7 Pricing: ' + app.pricing;
+  var roleLabel = (app.role === 'seller' ? 'Seller' : 'Runner') + (app.kind === 'reactivation' ? ' reactivation' : '');
+  var detail = app.kind === 'reactivation'
+    ? 'Renewing an inactive account'
+    : app.role === 'seller'
+      ? 'Category: ' + capitalize(app.category)
+      : 'Coverage: ' + app.coverage + ' \u00b7 Pricing: ' + app.pricing;
   var actions = app.status === 'pending'
     ? '<div class="runner-actions"><button class="btn btn-primary" data-action="approve" data-id="' + app.id + '">Approve</button><button class="btn btn-outline" data-action="reject" data-id="' + app.id + '">Reject</button></div>'
     : '';
@@ -117,6 +119,7 @@ function adminRowHTML(app) {
         '<div class="application-meta">' + app.contact + ' \u00b7 ' + detail + '</div>' +
         '<div class="application-meta">Payment proof: ' + (app.proofAttached ? 'attached' : 'missing') + ' \u00b7 Accepts: ' + app.payment + '</div>' +
       '</div>' +
+      (app.proofImage ? '<img class="proof-thumb" src="' + app.proofImage + '" alt="Payment proof (click to enlarge)">' : '') +
       '<div class="admin-row-status">' +
         '<span class="status ' + app.status + '"><span class="status-dot"></span>' + STATUS_LABELS[app.status] + '</span>' +
         actions +
@@ -232,6 +235,91 @@ function showConfirmModal(message, confirmLabel, onConfirm) {
   });
 }
 
+function showImageModal(src) {
+  var overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML =
+    '<div class="modal-box modal-box-wide">' +
+      '<img class="modal-image" alt="Payment proof">' +
+      '<div class="modal-actions"><button class="btn btn-outline" data-modal-cancel>Close</button></div>' +
+    '</div>';
+  overlay.querySelector('.modal-image').src = src;
+  document.body.appendChild(overlay);
+  function close() { overlay.remove(); }
+  overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+  overlay.querySelector('[data-modal-cancel]').addEventListener('click', close);
+}
+
+function renderLapsedNotice(container, type, account, isOwner) {
+  if (!container) return;
+  var boxStyle = 'margin: 24px 48px 0; max-width: 480px;';
+
+  if (!isOwner) {
+    container.innerHTML =
+      '<section class="panel" style="' + boxStyle + '">' +
+        '<span class="panel-title">This ' + type + ' is currently inactive</span>' +
+        '<p class="panel-note">They haven\'t been active for a while, so they\'re hidden from browse until they renew.</p>' +
+      '</section>';
+    return;
+  }
+
+  var pending = Store.getApplications().filter(function (a) {
+    return a.kind === 'reactivation' && a.accountType === type && a.accountId === account.id && a.status === 'pending';
+  })[0];
+
+  if (pending) {
+    container.innerHTML =
+      '<section class="panel" style="' + boxStyle + '">' +
+        '<span class="panel-title">Reactivation requested</span>' +
+        '<p class="panel-note">We\'ve received your proof of payment. Your account goes live again as soon as it\'s approved.</p>' +
+      '</section>';
+    return;
+  }
+
+  container.innerHTML =
+    '<section class="panel" style="' + boxStyle + '">' +
+      '<span class="panel-title">Your account is inactive</span>' +
+      '<p class="panel-note">There\'s been no activity for 3 months, so your account is hidden from browse. Nothing has been deleted. Pay the one-time registration fee again and upload proof to reactivate.</p>' +
+      '<label class="form-label" for="reactivate-proof">Proof of payment (screenshot or photo)</label>' +
+      '<input class="form-input" type="file" id="reactivate-proof" accept="image/*">' +
+      '<button class="btn btn-primary btn-full" id="reactivate-btn">Request reactivation</button>' +
+    '</section>';
+
+  document.getElementById('reactivate-btn').addEventListener('click', function () {
+    var file = document.getElementById('reactivate-proof').files[0];
+    if (!file) {
+      alert('Please attach your proof of payment first.');
+      return;
+    }
+    resizeImageToDataURL(file, 600, function (dataUrl) {
+      if (!dataUrl) {
+        alert('Couldn\'t read that file \u2014 please attach an image of your receipt.');
+        return;
+      }
+      try {
+        Store.addApplication({
+          id: 'app-' + Date.now(),
+          kind: 'reactivation',
+          role: type,
+          accountType: type,
+          accountId: account.id,
+          name: account.name,
+          contact: '(existing account)',
+          payment: account.payment,
+          proofAttached: true,
+          proofImage: dataUrl,
+          status: 'pending',
+          submittedAt: new Date().toISOString()
+        });
+      } catch (err) {
+        alert('Couldn\'t save this \u2014 the browser\'s storage is full. Try a smaller image.');
+        return;
+      }
+      renderLapsedNotice(container, type, account, true);
+    });
+  });
+}
+
 function ownedListingRowHTML(listing) {
   return '' +
     '<div class="application-row">' +
@@ -263,7 +351,9 @@ document.addEventListener('DOMContentLoaded', function () {
   // ---- Browse page: render grid from Store, then search + category filter ----
   var listingGrid = document.getElementById('listing-grid');
   if (listingGrid && window.Store) {
-    var listings = Store.getListings().map(function (l) {
+    var listings = Store.getListings().filter(function (l) {
+      return !Store.isLapsed('seller', l.sellerId);
+    }).map(function (l) {
       return { listing: l, seller: Store.getSellerById(l.sellerId) };
     });
     listingGrid.innerHTML = listings.map(function (pair) {
@@ -321,7 +411,9 @@ document.addEventListener('DOMContentLoaded', function () {
     var listing = Store.getListingById(listingId);
     var seller = listing ? Store.getSellerById(listing.sellerId) : null;
 
-    if (listing && seller) {
+    if (listing && seller && Store.isLapsed('seller', seller.id)) {
+      listingDetail.innerHTML = '<p class="empty-state">This listing is currently unavailable \u2014 the seller is inactive.</p>';
+    } else if (listing && seller) {
       document.title = 'User 1 \u2014 ' + listing.title;
       var photos = getListingImages(listing);
       var mainImageEl = document.getElementById('listing-image');
@@ -412,7 +504,13 @@ document.addEventListener('DOMContentLoaded', function () {
       var isOwner = !!(session && session.type === 'seller' && session.id === sellerData.id);
       var manageSection = document.getElementById('seller-manage-section');
 
-      if (isOwner && manageSection) {
+      var sellerLapsed = Store.isLapsed('seller', sellerData.id);
+      if (sellerLapsed) {
+        renderLapsedNotice(document.getElementById('lapsed-notice'), 'seller', sellerData, isOwner);
+        if (!isOwner) sellerGrid.innerHTML = '';
+      }
+
+      if (isOwner && manageSection && !sellerLapsed) {
         manageSection.style.display = 'block';
         var manageListEl = document.getElementById('seller-manage-list');
 
@@ -585,6 +683,7 @@ document.addEventListener('DOMContentLoaded', function () {
           var messages = thread ? thread.messages : [];
           if (messages.length === 0) {
             messageThreadList.innerHTML = '<p class="empty-state">No messages yet \u2014 say hello. </p>';
+            return;
           }
           messageThreadList.innerHTML = messages.map(function (m) {
             var who = m.sender === 'buyer' ? 'Buyer' : sellerData.name;
@@ -603,7 +702,7 @@ document.addEventListener('DOMContentLoaded', function () {
           renderMessageThread();
         }
         messageSendBtn.addEventListener('click', sendMessage);
-        messageInput.addEventListener('kedown', function (e) {
+        messageInput.addEventListener('keydown', function (e) {
           if (e.key === 'Enter') sendMessage();
         });
 
@@ -617,7 +716,9 @@ document.addEventListener('DOMContentLoaded', function () {
   // ---- Runner directory: render from Store, then All / Active now filter ----
   var runnerGrid = document.getElementById('runner-grid');
   if (runnerGrid && window.Store) {
-    var runners = Store.getRunners();
+    var runners = Store.getRunners().filter(function (r) {
+      return !Store.isLapsed('runner', r.id);
+    });
     runnerGrid.innerHTML = runners.map(function (r) { return runnerCardHTML(r); }).join('');
 
     var runnerCards = Array.prototype.slice.call(runnerGrid.querySelectorAll('.runner-card'));
@@ -668,7 +769,12 @@ document.addEventListener('DOMContentLoaded', function () {
       var session = Store.getSession();
       var isOwner = !!(session && session.type === 'runner' && session.id === runnerData.id);
 
-      if (toggleBtn && isOwner) {
+      var runnerLapsed = Store.isLapsed('runner', runnerData.id);
+      if (runnerLapsed) {
+        renderLapsedNotice(document.getElementById('lapsed-notice'), 'runner', runnerData, isOwner);
+      }
+
+      if (toggleBtn && isOwner && !runnerLapsed) {
         function refreshToggleButton() {
           toggleBtn.textContent = runnerData.active ? 'Mark yourself offline' : 'Mark yourself active now';
         }
@@ -682,7 +788,11 @@ document.addEventListener('DOMContentLoaded', function () {
         });
       } else if (toggleBtn) {
         toggleBtn.style.display = 'none';
-        if (statusNote) statusNote.textContent = 'Sign in as ' + runnerData.name + ' to manage this.';
+        if (statusNote) {
+          statusNote.textContent = (isOwner && runnerLapsed)
+            ? 'Reactivate your account to manage your status.'
+            : 'Sign in as ' + runnerData.name + ' to manage this.';
+        }
       }
 
       document.getElementById('runner-coverage').textContent = runnerData.coverage;
@@ -818,16 +928,33 @@ document.addEventListener('DOMContentLoaded', function () {
         application.pricing = document.getElementById('apply-pricing').value;
       }
 
-      Store.addApplication(application);
+      function finishSubmit(proofDataUrl) {
+        if (proofDataUrl) application.proofImage = proofDataUrl;
+        try {
+          Store.addApplication(application);
+        } catch (err) {
+          alert('Couldn\'t save your application \u2014 the browser\'s storage is full. Try a smaller proof image.');
+          return;
+        }
 
-      applyForm.style.display = 'none';
-      var confirmation = document.getElementById('apply-confirmation');
-      var confirmationText = document.getElementById('apply-confirmation-text');
-      confirmationText.textContent = 'Thanks, ' + application.name + '! We\'ve received your ' +
-        role + ' application and payment proof. You\'ll be able to start ' +
-        (role === 'seller' ? 'listing' : 'accepting runs') +
-        ' once it\'s approved \u2014 usually within 1\u20132 business days.';
-      confirmation.style.display = 'block';
+        applyForm.style.display = 'none';
+        var confirmation = document.getElementById('apply-confirmation');
+        var confirmationText = document.getElementById('apply-confirmation-text');
+        confirmationText.textContent = 'Thanks, ' + application.name + '! We\'ve received your ' +
+          role + ' application and payment proof. You\'ll be able to start ' +
+          (role === 'seller' ? 'listing' : 'accepting runs') +
+          ' once it\'s approved \u2014 usually within 1\u20132 business days.';
+        confirmation.style.display = 'block';
+      }
+
+      // Keep a (shrunk) copy of the proof so admin can actually look at it.
+      // Non-image files (e.g. a PDF receipt) are just noted as attached.
+      var proofFile = document.getElementById('apply-proof').files[0];
+      if (proofFile && proofFile.type.indexOf('image/') === 0) {
+        resizeImageToDataURL(proofFile, 600, finishSubmit);
+      } else {
+        finishSubmit(null);
+      }
     });
   }
 
@@ -836,7 +963,7 @@ document.addEventListener('DOMContentLoaded', function () {
   var buyerSections = document.getElementById('buyer-profile-sections');
   if (accountPanel && window.Store) {
     var profileSession = Store.getSession();
-    var isSellerOrRunner = !!(profileSession && (profileSession.type === 'seller' || profileSession.type === 'runner'));
+    var isSellerOrRunner = !!(profileSession && (profileSession.type === 'seller' || profileSession.type === 'runner' || profileSession.type === 'admin'));
     if (buyerSections) buyerSections.style.display = isSellerOrRunner ? 'none' : 'block';
 
     if (profileSession && profileSession.type === 'seller') {
@@ -859,6 +986,13 @@ document.addEventListener('DOMContentLoaded', function () {
         shortcutLink2.setAttribute('href', 'runner.html?id=' + ownedRunner.id);
         accountPanel.style.display = 'block';
       }
+    } else if (profileSession && profileSession.type === 'admin') {
+      document.getElementById('account-shortcut-title').textContent = 'You\'re signed in as an admin';
+      document.getElementById('account-shortcut-note').textContent = 'Review applications and renewals from the admin panel.';
+      var shortcutLink3 = document.getElementById('account-shortcut-link');
+      shortcutLink3.textContent = 'Go to the admin panel';
+      shortcutLink3.setAttribute('href', 'admin.html');
+      accountPanel.style.display = 'block';
     }
   }
 
@@ -866,7 +1000,9 @@ document.addEventListener('DOMContentLoaded', function () {
   var savedGrid = document.getElementById('saved-listings-grid');
   if (savedGrid && window.Store) {
     var savedIds = Store.getSavedListingIds();
-    var savedListings = savedIds.map(function (id) { return Store.getListingById(id); }).filter(Boolean);
+    var savedListings = savedIds.map(function (id) { return Store.getListingById(id); }).filter(Boolean).filter(function (l) {
+      return !Store.isLapsed('seller', l.sellerId);
+    });
 
     if (savedListings.length === 0) {
       var savedEmpty = document.createElement('p');
@@ -883,7 +1019,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   var applicationsList = document.getElementById('applications-list');
   if (applicationsList && window.Store) {
-    var myApplications = Store.getApplications();
+    var myApplications = Store.getApplications().filter(function (a) { return a.kind !== 'reactivation'; });
 
     if (myApplications.length === 0) {
       var appsEmpty = document.createElement('p');
@@ -910,7 +1046,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // ---- Admin panel: review/approve/reject applications (admin.html) ----
   var adminList = document.getElementById('admin-applications-list');
-  if (adminList && window.Store) {
+  var adminContent = document.getElementById('admin-content');
+  var adminDenied = document.getElementById('admin-denied');
+  var adminSession = window.Store ? Store.getSession() : null;
+  var isAdmin = !!(adminSession && adminSession.type === 'admin');
+  if (adminContent) adminContent.style.display = isAdmin ? 'block' : 'none';
+  if (adminDenied) adminDenied.style.display = isAdmin ? 'none' : 'block';
+
+  if (adminList && window.Store && isAdmin) {
     var adminFilter = document.querySelector('.filter-row');
 
     function renderAdminList() {
@@ -929,6 +1072,9 @@ document.addEventListener('DOMContentLoaded', function () {
       }
 
       adminList.innerHTML = filtered.map(function (app) { return adminRowHTML(app); }).join('');
+      adminList.querySelectorAll('.proof-thumb').forEach(function (img) {
+        img.addEventListener('click', function () { showImageModal(img.src); });
+      });
 
       adminList.querySelectorAll('[data-action]').forEach(function (btn) {
         btn.addEventListener('click', function () {
@@ -937,7 +1083,10 @@ document.addEventListener('DOMContentLoaded', function () {
           var app = Store.getApplications().filter(function (a) { return a.id === id; })[0];
           if (!app) return;
 
-          if (action === 'approve') {
+          if (app.kind === 'reactivation') {
+            if (action === 'approve') Store.reactivateAccount(app.accountType, app.accountId);
+            Store.updateApplicationStatus(id, action === 'approve' ? 'approved' : 'rejected');
+          } else if (action === 'approve') {
             var newId = slugify(app.name);
             var initials = initialsFromName(app.name);
             if (app.role === 'seller') {
@@ -963,6 +1112,32 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (adminFilter) adminFilter.addEventListener('chipchange', renderAdminList);
     renderAdminList();
+
+    // Testing tool: fast-forward an account's inactivity.
+    var ageSelect = document.getElementById('age-account-select');
+    var ageBtn = document.getElementById('age-account-btn');
+    var ageNote = document.getElementById('age-account-note');
+    if (ageSelect && ageBtn) {
+      function renderAgeOptions() {
+        var previous = ageSelect.value;
+        var accounts = [];
+        Store.getSellers().forEach(function (s) { accounts.push({ type: 'seller', id: s.id, name: s.name }); });
+        Store.getRunners().forEach(function (r) { accounts.push({ type: 'runner', id: r.id, name: r.name }); });
+        ageSelect.innerHTML = accounts.map(function (a) {
+          var state = Store.isLapsed(a.type, a.id) ? 'inactive' : 'active';
+          return '<option value="' + a.type + ':' + a.id + '">' + a.name + ' (' + a.type + ') \u2014 ' + state + '</option>';
+        }).join('');
+        if (previous) ageSelect.value = previous;
+      }
+      renderAgeOptions();
+
+      ageBtn.addEventListener('click', function () {
+        var parts = ageSelect.value.split(':');
+        Store.ageAccount(parts[0], parts[1], 91);
+        if (ageNote) ageNote.textContent = 'Done \u2014 that account now counts as inactive and is hidden from browse. Sign in as it to see the renew panel.';
+        renderAgeOptions();
+      });
+    }
   }
 
     // ---- Auth nav: reflect the current mock session on every page ----
@@ -971,7 +1146,7 @@ document.addEventListener('DOMContentLoaded', function () {
     var session = Store.getSession();
 
     if (session) {
-      var name = 'Buyer';
+      var name = session.type === 'admin' ? 'Admin' : 'Buyer';
       if (session.type === 'seller') {
         var s = Store.getSellerById(session.id);
         if (s) name = s.name;
@@ -999,6 +1174,7 @@ document.addEventListener('DOMContentLoaded', function () {
     var signinBuyer = document.getElementById('signin-buyer');
     var signinSeller = document.getElementById('signin-seller');
     var signinRunner = document.getElementById('signin-runner');
+    var signinAdmin = document.getElementById('signin-admin');
     var sellerFieldsEl = document.getElementById('signin-seller-fields');
     var runnerFieldsEl = document.getElementById('signin-runner-fields');
     var sellerSelect = document.getElementById('signin-seller-select');
@@ -1018,6 +1194,7 @@ document.addEventListener('DOMContentLoaded', function () {
     signinBuyer.addEventListener('change', updateSigninFields);
     signinSeller.addEventListener('change', updateSigninFields);
     signinRunner.addEventListener('change', updateSigninFields);
+    signinAdmin.addEventListener('change', updateSigninFields);
     updateSigninFields();
 
     signinForm.addEventListener('submit', function (e) {
@@ -1027,11 +1204,15 @@ document.addEventListener('DOMContentLoaded', function () {
         session = { type: 'seller', id: sellerSelect.value };
       } else if (signinRunner.checked) {
         session = { type: 'runner', id: runnerSelect.value };
+      } else if (signinAdmin.checked) {
+        session = { type: 'admin', id: 'admin' };
       } else {
         session = { type: 'buyer', id: null };
       }
       Store.setSession(session);
-      window.location.href = 'index.html';
+      // Signing in counts as account activity (unless the account has already lapsed).
+      if (session.type === 'seller' || session.type === 'runner') Store.touch(session.type, session.id);
+      window.location.href = session.type === 'admin' ? 'admin.html' : 'index.html';
     });
   }
 

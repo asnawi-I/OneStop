@@ -13,6 +13,7 @@
   <span class="logo">User 1</span>
   <nav class="site-nav">
     <a href="index.html">Back to site</a>
+    <button class="btn btn-outline">Sign in</button>
   </nav>
 </header>
 
@@ -21,12 +22,39 @@
   <p>Internal tool — review submitted applications, then approve or reject. Approving creates a live seller or runner immediately.</p>
 </section>
 
-<section class="filter-row">
-  <button class="chip active">All</button>
-  <button class="chip">Pending</button>
-  <button class="chip">Approved</button>
-  <button class="chip">Rejected</button>
+<section class="panel" id="admin-denied" style="display: none; margin: 0 48px 48px; max-width: 480px;">
+  <span class="panel-title">Admins only</span>
+  <p class="panel-note">Sign in as an admin to review applications.</p>
+  <a class="btn btn-primary" href="signin.html">Go to sign in</a>
 </section>
+
+<div id="admin-content" style="display: none;">
+
+  <section class="filter-row">
+    <button class="chip active">All</button>
+    <button class="chip">Pending</button>
+    <button class="chip">Approved</button>
+    <button class="chip">Rejected</button>
+  </section>
+
+  <section class="applications-list" id="admin-applications-list">
+    <!-- Rendered at runtime from Store.getApplications() -->
+  </section>
+
+  <section class="page-heading">
+    <h2 class="listing-title" style="font-size: 20px;">Testing tools</h2>
+  </section>
+
+  <section class="panel" style="margin: 0 48px 48px; max-width: 640px;">
+    <span class="panel-title">Simulate inactivity</span>
+    <p class="panel-note">Prototype only. Pushes an account's last activity back 91 days so you can see the 3-month lapse without waiting. The account disappears from browse until a reactivation request is approved here.</p>
+    <label class="form-label" for="age-account-select">Account</label>
+    <select class="form-input" id="age-account-select"></select>
+    <button class="btn btn-outline" id="age-account-btn" style="align-self: flex-start; margin-top: 8px;">Make it 91 days inactive</button>
+    <p class="panel-note" id="age-account-note"></p>
+  </section>
+
+</div>
 
 <section class="applications-list" id="admin-applications-list">
   <!-- Rendered at runtime from Store.getApplications() -->

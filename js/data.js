@@ -112,6 +112,33 @@
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   }
 
+  // ---- Account activity / lapse helpers ----
+  var LAPSE_DAYS = 90;
+  var DAY_MS = 24 * 60 * 60 * 1000;
+
+  function findAccount(data, type, id) {
+    var list = type === 'seller' ? data.sellers : data.runners;
+    return list.filter(function (a) { return a.id === id; })[0] || null;
+  }
+
+  function accountIsLapsed(acct) {
+    if (!acct) return false;
+    if (acct.lapsed) return true;
+    if (!acct.lastActive) return false; // older saved data has no timestamp yet
+    return (Date.now() - new Date(acct.lastActive).getTime()) > LAPSE_DAYS * DAY_MS;
+  }
+
+  // Records "the owner just did something". Mutates data; the caller writes it.
+  function touchAccount(data, type, id) {
+    var acct = findAccount(data, type, id);
+    if (!acct) return;
+    if (accountIsLapsed(acct)) {
+      acct.lapsed = true; // lock it in so later activity can't silently revive it
+      return;
+    }
+    acct.lastActive = new Date().toISOString();
+  }
+
 
   window.Store = {
     getSellers: function () {
@@ -138,12 +165,15 @@
     addListing: function (listing) {
       var data = readData();
       data.listings.push(listing);
+      touchAccount(data, 'seller', listing.sellerId);
       writeData(data);
       return listing;
     },
 
     updateListing: function (id, changes) {
       var data = readData();
+      var edited = data.listings.filter(function (l) { return l.id === id; })[0];
+      if (edited) touchAccount(data, 'seller', edited.sellerId);
       data.listings = data.listings.map(function (l) {
         if (l.id !== id) return l;
         var updated = Object.assign({}, l, changes);
@@ -154,6 +184,8 @@
     },
     deleteListing: function (id) {
       var data = readData();
+      var removed = data.listings.filter(function (l) { return l.id === id; })[0];
+      if (removed) touchAccount(data, 'seller', removed.sellerId);
       data.listings = data.listings.filter(function (l) { return l.id !== id; });
       writeData(data);
     },
@@ -172,6 +204,7 @@
       var match = data.runners.filter(function (r) { return r.id === id; })[0];
       if (match) {
         match.active = active;
+        touchAccount(data, 'runner', id);
         writeData(data);
       }
       return match || null;
@@ -190,6 +223,8 @@
         data.threads.push(thread);
       }
       thread.messages.push({ sender: sender, text: text, sentAt: new Date().toISOString() });
+      // The owner replying in their own thread counts as account activity.
+      if (sender === targetType) touchAccount(data, targetType, targetId);      
       writeData(data);
       return thread;
     },
@@ -217,15 +252,48 @@
     },
     addSeller: function (seller) {
       var data = readData();
+      seller.lastActive = new Date().toISOString();      
       data.sellers.push(seller);
       writeData(data);
       return seller;
     },
     addRunner: function (runner) {
       var data = readData();
+      runner.lastActive = new Date().toISOString();
       data.runners.push(runner);
       writeData(data);
       return runner;
+    },
+    isLapsed: function (type, id) {
+      return accountIsLapsed(findAccount(readData(), type, id));
+    },
+    // Called on sign-in. Lapsed accounts stay lapsed (see touchAccount).
+    touch: function (type, id) {
+      var data = readData();
+      touchAccount(data, type, id);
+      writeData(data);
+    },
+    // Admin approved a reactivation (the fee was paid again).
+    reactivateAccount: function (type, id) {
+      var data = readData();
+      var acct = findAccount(data, type, id);
+      if (acct) {
+        acct.lapsed = false;
+        acct.lastActive = new Date().toISOString();
+        writeData(data);
+      }
+      return acct;
+    },
+    // Testing helper: pretend the account's last activity was N days ago.
+    ageAccount: function (type, id, days) {
+      var data = readData();
+      var acct = findAccount(data, type, id);
+      if (acct) {
+        acct.lapsed = false;
+        acct.lastActive = new Date(Date.now() - days * DAY_MS).toISOString();
+        writeData(data);
+      }
+      return acct;
     },
 
     getReviewsForTarget: function (targetType, targetId) {
