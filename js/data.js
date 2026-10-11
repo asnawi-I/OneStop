@@ -296,6 +296,17 @@
       return acct;
     },
 
+    // Admin-controlled "boost": featured sellers' listings sort first on browse.
+    setSellerFeatured: function (id, featured) {
+      var data = readData();
+      var acct = findAccount(data, 'seller', id);
+      if (acct) {
+        acct.featured = !!featured;
+        writeData(data);
+      }
+      return acct;
+    },
+
     getReviewsForTarget: function (targetType, targetId) {
       return (readData().reviews || []).filter(function (r) {
         return r.targetType === targetType && r.targetId === targetId;

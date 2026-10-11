@@ -69,6 +69,7 @@ function cardHTML(listing, seller) {
     '<div class="card" data-category="' + listing.category + '">' +
       '<a class="card-image" href="listing.html?id=' + listing.id + '">' +
         photoHTML +
+        (seller.featured ? '<span class="badge-featured">Featured</span>' : '') +
       '</a>' +
       '<div class="card-body">' +
         '<a class="card-title" href="listing.html?id=' + listing.id + '">' + listing.title + '</a>' +
@@ -356,6 +357,10 @@ document.addEventListener('DOMContentLoaded', function () {
     }).map(function (l) {
       return { listing: l, seller: Store.getSellerById(l.sellerId) };
     });
+    // Featured sellers first (the sort is stable, so everyone else keeps their order).
+    listings.sort(function (a, b) {
+      return (b.seller && b.seller.featured ? 1 : 0) - (a.seller && a.seller.featured ? 1 : 0);
+    });    
     listingGrid.innerHTML = listings.map(function (pair) {
       return cardHTML(pair.listing, pair.seller);
     }).join('');
@@ -489,6 +494,14 @@ document.addEventListener('DOMContentLoaded', function () {
       document.title = 'User 1 \u2014 ' + sellerData.name;
       document.getElementById('seller-avatar').textContent = sellerData.avatar;
       document.getElementById('seller-name').textContent = sellerData.name;
+      
+      if (sellerData.featured) {
+        var featuredTag = document.createElement('span');
+        featuredTag.className = 'featured-tag';
+        featuredTag.textContent = 'Featured';
+        document.getElementById('seller-name').appendChild(featuredTag);
+      }
+
       document.getElementById('seller-rating').innerHTML = '&#9733; ' + sellerData.rating.toFixed(1) + ' (' + sellerData.reviews + ' reviews)';
       document.getElementById('seller-bio').textContent = sellerData.bio;
       document.getElementById('seller-payment').textContent = 'Accepts: ' + sellerData.payment;
@@ -1113,6 +1126,34 @@ document.addEventListener('DOMContentLoaded', function () {
     if (adminFilter) adminFilter.addEventListener('chipchange', renderAdminList);
     renderAdminList();
 
+    // Featured sellers: admin toggles the "boost" per seller.
+    var featuredList = document.getElementById('admin-featured-list');
+    function renderFeaturedList() {
+      if (!featuredList) return;
+      featuredList.innerHTML = Store.getSellers().map(function (s) {
+        var note = Store.isLapsed('seller', s.id) ? 'Inactive \u2014 hidden from browse' : (s.featured ? 'Featured' : 'Standard');
+        return '' +
+          '<div class="application-row">' +
+            '<div>' +
+              '<div class="application-name">' + s.name + '</div>' +
+              '<div class="application-meta">' + note + '</div>' +
+            '</div>' +
+            '<button class="btn ' + (s.featured ? 'btn-outline' : 'btn-primary') + '" data-feature-id="' + s.id + '">' +
+              (s.featured ? 'Remove featured' : 'Feature') +
+            '</button>' +
+          '</div>';
+      }).join('');
+      featuredList.querySelectorAll('[data-feature-id]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var sellerToToggle = Store.getSellerById(btn.getAttribute('data-feature-id'));
+          if (!sellerToToggle) return;
+          Store.setSellerFeatured(sellerToToggle.id, !sellerToToggle.featured);
+          renderFeaturedList();
+        });
+      });
+    }
+    renderFeaturedList();    
+
     // Testing tool: fast-forward an account's inactivity.
     var ageSelect = document.getElementById('age-account-select');
     var ageBtn = document.getElementById('age-account-btn');
@@ -1136,6 +1177,7 @@ document.addEventListener('DOMContentLoaded', function () {
         Store.ageAccount(parts[0], parts[1], 91);
         if (ageNote) ageNote.textContent = 'Done \u2014 that account now counts as inactive and is hidden from browse. Sign in as it to see the renew panel.';
         renderAgeOptions();
+        renderFeaturedList();
       });
     }
   }
