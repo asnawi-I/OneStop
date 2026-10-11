@@ -58,6 +58,21 @@ function handleImageError(img) {
   img.replaceWith(fallback);
 }
 
+// One optional extra detail per category, filled in by the seller on the
+// Add/Edit listing form. Stored on the listing as a single "detail" string;
+// the label is looked up from the listing's category.
+var CATEGORY_FIELDS = {
+  food:       { label: 'Availability', type: 'select', options: ['Ready now', 'Pre-order'] },
+  crafts:     { label: 'Availability', type: 'select', options: ['Ready-made', 'Made to order'] },
+  secondhand: { label: 'Condition',    type: 'select', options: ['New', 'Like new', 'Good', 'Fair'] },
+  services:   { label: 'Area covered', type: 'text',   placeholder: 'e.g. Gadong, Kiulap' }
+};
+
+function detailLabelFor(listing) {
+  var cfg = CATEGORY_FIELDS[listing.category];
+  return cfg ? cfg.label : 'Detail';
+}
+
 // Builds the HTML for one listing card. Used by both the browse grid and a
 // seller's own listings grid.
 function cardHTML(listing, seller) {
@@ -75,6 +90,7 @@ function cardHTML(listing, seller) {
         '<a class="card-title" href="listing.html?id=' + listing.id + '">' + listing.title + '</a>' +
         '<a class="card-seller" href="seller.html?id=' + seller.id + '">by ' + seller.name + '</a>' +
         '<span class="card-price">$' + listing.price.toFixed(2) + '</span>' +
+        (listing.detail ? '<span class="card-detail">' + listing.detail + '</span>' : '') +
       '</div>' +
     '</div>';
 }
@@ -326,7 +342,7 @@ function ownedListingRowHTML(listing) {
     '<div class="application-row">' +
       '<div>' +
         '<div class="application-name">' + listing.title + '</div>' +
-        '<div class="application-meta">$' + listing.price.toFixed(2) + ' \u00b7 ' + capitalize(listing.category) + '</div>' +
+        '<div class="application-meta">$' + listing.price.toFixed(2) + ' \u00b7 ' + capitalize(listing.category) + (listing.detail ? ' \u00b7 ' + listing.detail : '') + '</div>' +
       '</div>' +
       '<div class="row-actions">' +
         '<button class="btn btn-outline" data-edit-listing="' + listing.id + '">Edit</button>' +
@@ -451,7 +467,8 @@ document.addEventListener('DOMContentLoaded', function () {
       document.getElementById('listing-title').textContent = listing.title;
       document.getElementById('listing-price').textContent = '$' + listing.price.toFixed(2);
       document.getElementById('listing-description').textContent = listing.description;
-      document.getElementById('listing-category').textContent = 'Category: ' + capitalize(listing.category);
+      document.getElementById('listing-category').textContent = 'Category: ' + capitalize(listing.category) +
+        (listing.detail ? ' \u00b7 ' + detailLabelFor(listing) + ': ' + listing.detail : '');
       document.getElementById('seller-name').textContent = seller.name;
       document.getElementById('seller-rating').innerHTML = '&#9733; ' + seller.rating.toFixed(1) + ' (' + seller.reviews + ' reviews)';
       document.getElementById('seller-link').setAttribute('href', 'seller.html?id=' + seller.id);
@@ -620,6 +637,36 @@ document.addEventListener('DOMContentLoaded', function () {
         var submitBtn = document.getElementById('add-listing-btn');
         var cancelBtn = document.getElementById('cancel-edit-btn');
 
+
+        // The category-specific field (Condition / Availability / Area covered)
+        // is rebuilt whenever the category changes.
+        var detailWrap = document.getElementById('category-detail-wrap');
+        var categorySelectEl = document.getElementById('new-listing-category');
+
+        function renderCategoryField(selectedValue) {
+          var cfg = CATEGORY_FIELDS[categorySelectEl.value];
+          if (!cfg) {
+            detailWrap.innerHTML = '';
+            return;
+          }
+          var html = '<label class="form-label" for="new-listing-detail">' + cfg.label + ' (optional)</label>';
+          if (cfg.type === 'select') {
+            html += '<select class="form-input" id="new-listing-detail"><option value="">Not specified</option>' +
+              cfg.options.map(function (o) {
+                return '<option value="' + o + '"' + (o === selectedValue ? ' selected' : '') + '>' + o + '</option>';
+              }).join('') +
+              '</select>';
+          } else {
+            html += '<input class="form-input" type="text" id="new-listing-detail" placeholder="' + cfg.placeholder + '">';
+          }
+          detailWrap.innerHTML = html;
+          if (cfg.type === 'text' && selectedValue) {
+            document.getElementById('new-listing-detail').value = selectedValue;
+          }
+        }
+        categorySelectEl.addEventListener('change', function () { renderCategoryField(''); });
+        renderCategoryField('');
+
         function resetListingForm() {
           editingId = null;
           document.getElementById('new-listing-title').value = '';
@@ -627,6 +674,7 @@ document.addEventListener('DOMContentLoaded', function () {
           document.getElementById('new-listing-description').value = '';
           pendingPhotos = [];
           renderPhotoPreviews();
+          renderCategoryField('');          
           formTitleEl.textContent = 'Add a listing';
           submitBtn.textContent = 'Add listing';
           cancelBtn.style.display = 'none';
@@ -639,6 +687,7 @@ document.addEventListener('DOMContentLoaded', function () {
           document.getElementById('new-listing-title').value = l.title;
           document.getElementById('new-listing-price').value = l.price;
           document.getElementById('new-listing-category').value = l.category;
+          renderCategoryField(l.detail || '');         
           document.getElementById('new-listing-description').value = l.description || '';
           pendingPhotos = getListingImages(l).slice();
           renderPhotoPreviews();
@@ -655,6 +704,8 @@ document.addEventListener('DOMContentLoaded', function () {
           var price = parseFloat(document.getElementById('new-listing-price').value);
           var category = document.getElementById('new-listing-category').value;
           var description = document.getElementById('new-listing-description').value.trim();
+          var detailEl = document.getElementById('new-listing-detail');
+          var detail = detailEl ? detailEl.value.trim() : '';          
 
           if (!title || isNaN(price)) {
             alert('Please fill in at least a title and a valid price.');
@@ -665,13 +716,13 @@ document.addEventListener('DOMContentLoaded', function () {
             if (editingId) {
               Store.updateListing(editingId, {
                 title: title, price: price, category: category,
-                description: description, images: pendingPhotos.slice()
+                description: description, detail: detail, images: pendingPhotos.slice()
               });
             } else {
               Store.addListing({
                 id: slugify(title) + '-' + Date.now(),
                 title: title, price: price, category: category,
-                sellerId: sellerData.id, description: description,
+                sellerId: sellerData.id, description: description, detail: detail,
                 images: pendingPhotos.slice()
               });
             }
