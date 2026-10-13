@@ -7,6 +7,14 @@ function capitalize(word) {
   return word.charAt(0).toUpperCase() + word.slice(1);
 }
 
+// Makes user-typed text safe to drop into an HTML string (so "<b>" shows as
+// text instead of running as markup). Use on anything a person typed.
+function escapeHTML(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 function slugify(name) {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 24) || ('user' + Date.now());
 }
@@ -78,7 +86,7 @@ function detailLabelFor(listing) {
 function cardHTML(listing, seller) {
   var photos = getListingImages(listing);
   var photoHTML = photos.length
-    ? '<img src="' + photos[0] + '" alt="' + listing.title + '" onerror="handleImageError(this)">'
+    ? '<img src="' + photos[0] + '" alt="' + escapeHTML(listing.title) + '" onerror="handleImageError(this)">'
     : '<span class="image-fallback-text">[Image unavailable]</span>';
   return '' +
     '<div class="card" data-category="' + listing.category + '">' +
@@ -87,10 +95,10 @@ function cardHTML(listing, seller) {
         (seller.featured ? '<span class="badge-featured">Featured</span>' : '') +
       '</a>' +
       '<div class="card-body">' +
-        '<a class="card-title" href="listing.html?id=' + listing.id + '">' + listing.title + '</a>' +
-        '<a class="card-seller" href="seller.html?id=' + seller.id + '">by ' + seller.name + '</a>' +
+        '<a class="card-title" href="listing.html?id=' + listing.id + '">' + escapeHTML(listing.title) + '</a>' +
+        '<a class="card-seller" href="seller.html?id=' + seller.id + '">by ' + escapeHTML(seller.name) + '</a>' +
         '<span class="card-price">$' + listing.price.toFixed(2) + '</span>' +
-        (listing.detail ? '<span class="card-detail">' + listing.detail + '</span>' : '') +
+                (listing.detail ? '<span class="card-detail">' + escapeHTML(listing.detail) + '</span>' : '') +
       '</div>' +
     '</div>';
 }
@@ -101,14 +109,14 @@ function runnerCardHTML(runner) {
   return '' +
     '<div class="runner-card">' +
       '<div class="runner-top">' +
-        '<div class="runner-avatar">' + runner.avatar + '</div>' +
+        '<div class="runner-avatar">' + escapeHTML(runner.avatar) + '</div>' +
         '<div>' +
-          '<div class="runner-name">' + runner.name + '</div>' +
+          '<div class="runner-name">' + escapeHTML(runner.name) + '</div>' +
           '<div class="runner-rating">&#9733; ' + runner.rating.toFixed(1) + ' (' + runner.trips + ' trips)</div>' +
         '</div>' +
       '</div>' +
       '<span class="status ' + statusClass + '"><span class="status-dot"></span>' + statusLabel + '</span>' +
-      '<span class="runner-coverage">' + runner.coverage + '</span>' +
+      '<span class="runner-coverage">' + escapeHTML(runner.coverage) + '</span>' +
       '<div class="runner-actions">' +
         '<a class="btn btn-outline" href="runner.html?id=' + runner.id + '">View profile</a>' +
         '<a class="btn btn-primary" href="runner.html?id=' + runner.id + '#message-input">Contact</a>' +
@@ -124,7 +132,7 @@ function adminRowHTML(app) {
     ? 'Renewing an inactive account'
     : app.role === 'seller'
       ? 'Category: ' + capitalize(app.category)
-      : 'Coverage: ' + app.coverage + ' \u00b7 Pricing: ' + app.pricing;
+      : 'Coverage: ' + escapeHTML(app.coverage) + ' \u00b7 Pricing: ' + escapeHTML(app.pricing);
   var actions = app.status === 'pending'
     ? '<div class="runner-actions"><button class="btn btn-primary" data-action="approve" data-id="' + app.id + '">Approve</button><button class="btn btn-outline" data-action="reject" data-id="' + app.id + '">Reject</button></div>'
     : '';
@@ -132,9 +140,9 @@ function adminRowHTML(app) {
   return '' +
     '<div class="application-row admin-row">' +
       '<div>' +
-        '<div class="application-name">' + app.name + ' (' + roleLabel + ')</div>' +
-        '<div class="application-meta">' + app.contact + ' \u00b7 ' + detail + '</div>' +
-        '<div class="application-meta">Payment proof: ' + (app.proofAttached ? 'attached' : 'missing') + ' \u00b7 Accepts: ' + app.payment + '</div>' +
+        '<div class="application-name">' + escapeHTML(app.name) + ' (' + roleLabel + ')</div>' +
+        '<div class="application-meta">' + escapeHTML(app.contact) + ' \u00b7 ' + detail + '</div>' +
+        '<div class="application-meta">Payment proof: ' + (app.proofAttached ? 'attached' : 'missing') + ' \u00b7 Accepts: ' + escapeHTML(app.payment) + '</div>' +
       '</div>' +
       (app.proofImage ? '<img class="proof-thumb" src="' + app.proofImage + '" alt="Payment proof (click to enlarge)">' : '') +
       '<div class="admin-row-status">' +
@@ -144,15 +152,20 @@ function adminRowHTML(app) {
     '</div>';
 }
 
-// Wires up the star input, submit button, and review list on either
-// listing.html (reviewing a seller) or runner.html (reviewing a runner).
-// options: { targetType: 'seller'|'runner', targetId, refreshRating }
+// Wires up the star input, submit button, and review list on listing.html and
+// seller.html (reviewing a seller) or runner.html (reviewing a runner).
+// options: { targetType: 'seller'|'runner', targetId, refreshRating, closed }
+// One review per reviewer per target: submitting again edits your review.
 function setupReviewSection(options) {
   var listEl = document.getElementById('reviews-list');
   if (!listEl || !window.Store) return;
 
+  var myId = Store.getReviewerId();
+
   function renderReviews() {
-    var reviews = Store.getReviewsForTarget(options.targetType, options.targetId).slice().reverse();
+    var reviews = Store.getReviewsForTarget(options.targetType, options.targetId).slice().sort(function (a, b) {
+      return new Date(b.submittedAt) - new Date(a.submittedAt);
+    });
     if (reviews.length === 0) {
       listEl.innerHTML = '<p class="empty-state">No reviews yet \u2014 be the first to leave one.</p>';
       return;
@@ -160,11 +173,15 @@ function setupReviewSection(options) {
     listEl.innerHTML = reviews.map(function (r) {
       var stars = '\u2605'.repeat(r.rating) + '\u2606'.repeat(5 - r.rating);
       var dateLabel = new Date(r.submittedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+      var mine = r.reviewerId === myId;
       return '' +
         '<div class="review-row">' +
           '<div class="review-stars">' + stars + '</div>' +
-          (r.comment ? '<p class="review-comment">' + r.comment + '</p>' : '') +
-          '<div class="review-meta">' + r.author + ' \u00b7 ' + dateLabel + '</div>' +
+          (r.comment ? '<p class="review-comment">' + escapeHTML(r.comment) + '</p>' : '') +
+          '<div class="review-meta">' + escapeHTML(r.author) + ' \u00b7 ' + dateLabel +
+            (r.edited ? ' \u00b7 edited' : '') +
+            (mine ? ' <span class="review-mine">Your review</span>' : '') +
+          '</div>' +
         '</div>';
     }).join('');
   }
@@ -176,50 +193,78 @@ function setupReviewSection(options) {
   var submitBtn = document.getElementById('review-submit-btn');
   if (!starsContainer || !submitBtn) return;
 
+  var reviewPanel = submitBtn.closest('.panel');
   var session = Store.getSession();
   var isSelf = !!(session && session.type === options.targetType && session.id === options.targetId);
 
-  if (isSelf) {
-    var reviewPanel = submitBtn.closest('.panel');
+  if (isSelf || options.closed) {
     if (reviewPanel) {
-      reviewPanel.innerHTML = '<span class="panel-title">Leave a review</span><p class="panel-note">You can\'t review your own profile.</p>';
+      reviewPanel.innerHTML = '<span class="panel-title">Leave a review</span><p class="panel-note">' +
+        (isSelf ? 'You can\'t review your own profile.' : 'Reviews are paused while this account is inactive.') + '</p>';
     }
     return;
   }
 
   var starButtons = Array.prototype.slice.call(starsContainer.querySelectorAll('.star-btn'));
+  function setStars(val) {
+    starsContainer.setAttribute('data-value', val);
+    starButtons.forEach(function (b) {
+      b.classList.toggle('filled', parseInt(b.getAttribute('data-star'), 10) <= val);
+    });
+  }
   starButtons.forEach(function (btn) {
     btn.addEventListener('click', function () {
-      var val = parseInt(btn.getAttribute('data-star'), 10);
-      starsContainer.setAttribute('data-value', val);
-      starButtons.forEach(function (b) {
-        b.classList.toggle('filled', parseInt(b.getAttribute('data-star'), 10) <= val);
-      });
+      setStars(parseInt(btn.getAttribute('data-star'), 10));
+      showMessage('', false);
     });
   });
+
+  // Inline message under the form (replaces the old browser alert).
+  var msgEl = document.createElement('p');
+  msgEl.className = 'panel-note review-msg';
+  submitBtn.parentNode.insertBefore(msgEl, submitBtn);
+  function showMessage(text, isError) {
+    msgEl.textContent = text;
+    msgEl.classList.toggle('error', !!isError);
+  }
+
+  // If this reviewer already reviewed, load it into the form for editing.
+  function loadMine() {
+    var mine = Store.getMyReview(options.targetType, options.targetId);
+    if (mine) {
+      setStars(mine.rating);
+      if (commentInput) commentInput.value = mine.comment || '';
+      if (authorInput && mine.author !== 'Guest buyer') authorInput.value = mine.author;
+      submitBtn.textContent = 'Update your review';
+    }
+  }
+  loadMine();
 
   submitBtn.addEventListener('click', function () {
     var rating = parseInt(starsContainer.getAttribute('data-value'), 10) || 0;
     if (rating === 0) {
-      alert('Please select a star rating first.');
+      showMessage('Please select a star rating first.', true);
       return;
     }
-    Store.addReview({
-      id: 'review-' + Date.now(),
-      targetType: options.targetType,
-      targetId: options.targetId,
-      author: (authorInput && authorInput.value.trim()) || 'Guest buyer',
-      rating: rating,
-      comment: commentInput ? commentInput.value.trim() : '',
-      submittedAt: new Date().toISOString()
-    });
+    var hadReview = !!Store.getMyReview(options.targetType, options.targetId);
+    try {
+      Store.addReview({
+        id: 'review-' + Date.now(),
+        targetType: options.targetType,
+        targetId: options.targetId,
+        author: (authorInput && authorInput.value.trim()) || 'Guest buyer',
+        rating: rating,
+        comment: commentInput ? commentInput.value.trim() : '',
+        submittedAt: new Date().toISOString()
+      });
+    } catch (err) {
+      showMessage('Couldn\'t save your review \u2014 the browser\'s storage is full.', true);
+      return;
+    }
 
     options.refreshRating();
-
-    if (authorInput) authorInput.value = '';
-    if (commentInput) commentInput.value = '';
-    starsContainer.setAttribute('data-value', 0);
-    starButtons.forEach(function (b) { b.classList.remove('filled'); });
+    submitBtn.textContent = 'Update your review';
+    showMessage(hadReview ? 'Your review has been updated.' : 'Thanks \u2014 your review is posted. You can edit it any time.', false);
     renderReviews();
   });
 }
@@ -341,8 +386,8 @@ function ownedListingRowHTML(listing) {
   return '' +
     '<div class="application-row">' +
       '<div>' +
-        '<div class="application-name">' + listing.title + '</div>' +
-        '<div class="application-meta">$' + listing.price.toFixed(2) + ' \u00b7 ' + capitalize(listing.category) + (listing.detail ? ' \u00b7 ' + listing.detail : '') + '</div>' +
+        '<div class="application-name">' + escapeHTML(listing.title) + '</div>' +
+        '<div class="application-meta">$' + listing.price.toFixed(2) + ' \u00b7 ' + capitalize(listing.category) + (listing.detail ? ' \u00b7 ' + escapeHTML(listing.detail) : '') + '</div>' +
       '</div>' +
       '<div class="row-actions">' +
         '<button class="btn btn-outline" data-edit-listing="' + listing.id + '">Edit</button>' +
@@ -441,7 +486,7 @@ document.addEventListener('DOMContentLoaded', function () {
       var thumbsEl = document.getElementById('listing-thumbs');
 
       function showMainImage(src) {
-        mainImageEl.innerHTML = '<img src="' + src + '" alt="' + listing.title + '" onerror="handleImageError(this)">';
+        mainImageEl.innerHTML = '<img src="' + src + '" alt="' + escapeHTML(listing.title) + '" onerror="handleImageError(this)">';
       }
 
       if (photos.length === 0) {
@@ -539,6 +584,19 @@ document.addEventListener('DOMContentLoaded', function () {
         renderLapsedNotice(document.getElementById('lapsed-notice'), 'seller', sellerData, isOwner);
         if (!isOwner) sellerGrid.innerHTML = '';
       }
+
+
+      var sellerReviewName = document.getElementById('review-target-name');
+      if (sellerReviewName) sellerReviewName.textContent = sellerData.name;
+      setupReviewSection({
+        targetType: 'seller',
+        targetId: sellerData.id,
+        closed: sellerLapsed,
+        refreshRating: function () {
+          var updated = Store.getSellerById(sellerData.id);
+          document.getElementById('seller-rating').innerHTML = '&#9733; ' + updated.rating.toFixed(1) + ' (' + updated.reviews + ' reviews)';
+        }
+      });
 
       if (isOwner && manageSection && !sellerLapsed) {
         manageSection.style.display = 'block';
@@ -752,7 +810,7 @@ document.addEventListener('DOMContentLoaded', function () {
           messageThreadList.innerHTML = messages.map(function (m) {
             var who = m.sender === 'buyer' ? 'Buyer' : sellerData.name;
             var mine = m.sender === mySender;
-            return '<div class="message-bubble ' + (mine ? 'mine' : 'theirs') + '"><div class="message-sender">' + who + '</div><div class="message-text">' + m.text + '</div></div>';
+            return '<div class="message-bubble ' + (mine ? 'mine' : 'theirs') + '"><div class="message-sender">' + escapeHTML(who) + '</div><div class="message-text">' + escapeHTML(m.text) + '</div></div>';
           }).join('');
           messageThreadList.scrollTop = messageThreadList.scrollHeight;
         }
@@ -878,7 +936,7 @@ document.addEventListener('DOMContentLoaded', function () {
           messageThreadList.innerHTML = messages.map(function (m) {
             var who = m.sender === 'buyer' ? 'Buyer' : runnerData.name;
             var mine = m.sender === mySender;
-            return '<div class="message-bubble ' + (mine ? 'mine' : 'theirs') + '"><div class="message-sender">' + who + '</div><div class="message-text">' + m.text + '</div></div>';
+            return '<div class="message-bubble ' + (mine ? 'mine' : 'theirs') + '"><div class="message-sender">' + escapeHTML(who) + '</div><div class="message-text">' + escapeHTML(m.text) + '</div></div>';
           }).join('');
           messageThreadList.scrollTop = messageThreadList.scrollHeight;
         }
@@ -904,6 +962,7 @@ document.addEventListener('DOMContentLoaded', function () {
       setupReviewSection({
         targetType: 'runner',
         targetId: runnerData.id,
+        closed: runnerLapsed,        
         refreshRating: function () {
           var updated = Store.getRunnerById(runnerData.id);
           document.getElementById('runner-rating').innerHTML = '&#9733; ' + updated.rating.toFixed(1) + ' (' + updated.trips + ' trips)';
@@ -1095,11 +1154,11 @@ document.addEventListener('DOMContentLoaded', function () {
         var submitted = new Date(app.submittedAt);
         var dateLabel = submitted.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
         var roleLabel = app.role === 'seller' ? 'Seller' : 'Runner';
-        var detail = app.role === 'seller' ? ('Category: ' + capitalize(app.category)) : ('Coverage: ' + app.coverage);
+        var detail = app.role === 'seller' ? ('Category: ' + capitalize(app.category)) : ('Coverage: ' + escapeHTML(app.coverage));
         return '' +
           '<div class="application-row">' +
             '<div>' +
-              '<div class="application-name">' + app.name + ' (' + roleLabel + ')</div>' +
+              '<div class="application-name">' + escapeHTML(app.name) + ' (' + roleLabel + ')</div>' +
               '<div class="application-meta">Submitted ' + dateLabel + ' \u00b7 ' + detail + '</div>' +
             '</div>' +
             '<span class="status ' + app.status + '"><span class="status-dot"></span>' + STATUS_LABELS[app.status] + '</span>' +
@@ -1186,7 +1245,7 @@ document.addEventListener('DOMContentLoaded', function () {
         return '' +
           '<div class="application-row">' +
             '<div>' +
-              '<div class="application-name">' + s.name + '</div>' +
+              '<div class="application-name">' + escapeHTML(s.name) + '</div>' +
               '<div class="application-meta">' + note + '</div>' +
             '</div>' +
             '<button class="btn ' + (s.featured ? 'btn-outline' : 'btn-primary') + '" data-feature-id="' + s.id + '">' +
@@ -1217,7 +1276,7 @@ document.addEventListener('DOMContentLoaded', function () {
         Store.getRunners().forEach(function (r) { accounts.push({ type: 'runner', id: r.id, name: r.name }); });
         ageSelect.innerHTML = accounts.map(function (a) {
           var state = Store.isLapsed(a.type, a.id) ? 'inactive' : 'active';
-          return '<option value="' + a.type + ':' + a.id + '">' + a.name + ' (' + a.type + ') \u2014 ' + state + '</option>';
+          return '<option value="' + a.type + ':' + a.id + '">' + escapeHTML(a.name) + ' (' + a.type + ') \u2014 ' + state + '</option>';
         }).join('');
         if (previous) ageSelect.value = previous;
       }
@@ -1274,10 +1333,10 @@ document.addEventListener('DOMContentLoaded', function () {
     var runnerSelect = document.getElementById('signin-runner-select');
 
     sellerSelect.innerHTML = Store.getSellers().map(function (s) {
-      return '<option value="' + s.id + '">' + s.name + '</option>';
+      return '<option value="' + s.id + '">' + escapeHTML(s.name) + '</option>';
     }).join('');
     runnerSelect.innerHTML = Store.getRunners().map(function (r) {
-      return '<option value="' + r.id + '">' + r.name + '</option>';
+      return '<option value="' + r.id + '">' + escapeHTML(r.name) + '</option>';
     }).join('');
 
     function updateSigninFields() {

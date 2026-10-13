@@ -112,6 +112,27 @@
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   }
 
+    // ---- Reviewer identity ----
+  // One review per reviewer per target. Signed-in accounts review as themselves
+  // ("seller:khalita"); everyone else gets a random id kept in this browser.
+  var REVIEWER_KEY = 'onestop_prototype_reviewer_v1';
+
+  function currentReviewerId() {
+    try {
+      var raw = localStorage.getItem(SESSION_KEY);
+      var s = raw ? JSON.parse(raw) : null;
+      if (s && s.id) return s.type + ':' + s.id;
+      var token = localStorage.getItem(REVIEWER_KEY);
+      if (!token) {
+        token = 'guest-' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+        localStorage.setItem(REVIEWER_KEY, token);
+      }
+      return token;
+    } catch (e) {
+      return 'guest-unknown';
+    }
+  }
+
   // ---- Account activity / lapse helpers ----
   var LAPSE_DAYS = 90;
   var DAY_MS = 24 * 60 * 60 * 1000;
@@ -313,14 +334,43 @@
       });
     },
 
+    getReviewerId: function () {
+      return currentReviewerId();
+    },
+    getMyReview: function (targetType, targetId) {
+      var me = currentReviewerId();
+      return (readData().reviews || []).filter(function (r) {
+        return r.targetType === targetType && r.targetId === targetId && r.reviewerId === me;
+      })[0] || null;
+    },
     addReview: function (review) {
       var data = readData();
       if (!data.reviews) data.reviews = [];
-      data.reviews.push(review);
+      review.reviewerId = currentReviewerId();
 
       var list = review.targetType === 'seller' ? data.sellers : data.runners;
       var countField = review.targetType === 'seller' ? 'reviews' : 'trips';
       var target = list.filter(function (t) { return t.id === review.targetId; })[0];
+
+      // Same reviewer + same target = edit their existing review, not a new one.
+      var existing = data.reviews.filter(function (r) {
+        return r.targetType === review.targetType && r.targetId === review.targetId && r.reviewerId === review.reviewerId;
+      })[0];
+      if (existing) {
+        if (target && (target[countField] || 0) > 0) {
+          var count = target[countField];
+          target.rating = ((target.rating || 0) * count - existing.rating + review.rating) / count;
+        }
+        existing.rating = review.rating;
+        existing.comment = review.comment;
+        existing.author = review.author;
+        existing.submittedAt = review.submittedAt;
+        existing.edited = true;
+        writeData(data);
+        return existing;
+      }
+
+      data.reviews.push(review);
       if (target) {
         var oldCount = target[countField] || 0;
         var oldRating = target.rating || 0;
@@ -332,7 +382,6 @@
       writeData(data);
       return review;
     },
-
     getSavedListingIds: function () {
       return readData().savedListingIds || [];
     },
